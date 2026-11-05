@@ -14,7 +14,24 @@ AUDIT_LOG = os.path.join(os.path.dirname(__file__), "RELEASE_AUDIT.log")
 def execute_release(incident_id: str, version: str):
     os.makedirs(RELEASES_DIR, exist_ok=True)
 
-    # 1. Run Rust switchguard-cli verify-diff on sandbox-app
+    # 1. Enforce test pass rate: pytest in sandbox-app must exit 0
+    pytest_proc = subprocess.run(
+        ["pytest", "-q"],
+        cwd=SANDBOX_DIR,
+        capture_output=True,
+        text=True
+    )
+    if pytest_proc.returncode != 0:
+        print(json.dumps({
+            "release_status": "TESTS_FAILED",
+            "incident_id": incident_id,
+            "error": "Pytest failed in sandbox-app. Releases require all tests to pass.",
+            "pytest_output": pytest_proc.stdout.strip(),
+            "exit_code": 1
+        }, indent=2))
+        sys.exit(1)
+
+    # 2. Run Rust switchguard-cli verify-diff on sandbox-app
     cli_bin = shutil.which("switchguard-cli") or os.path.expanduser("~/.local/bin/switchguard-cli")
     verify_proc = subprocess.run(
         [cli_bin, "verify-diff", SANDBOX_DIR],
@@ -31,7 +48,7 @@ def execute_release(incident_id: str, version: str):
 
     audit_data = json.loads(verify_proc.stdout)
 
-    # 2. Export git diff HEAD to patch artifact (catches staged + unstaged)
+    # 3. Export git diff HEAD to patch artifact (catches staged + unstaged changes)
     diff_proc = subprocess.run(
         ["git", "-C", SANDBOX_DIR, "diff", "HEAD"],
         capture_output=True,
@@ -39,7 +56,7 @@ def execute_release(incident_id: str, version: str):
         check=True
     )
 
-    # --- EDGE CASE A: Empty-patch rejection ---
+    # Refuse to release if git diff HEAD is empty (0 bytes)
     diff_content = diff_proc.stdout.strip()
     if not diff_content:
         empty_sha = hashlib.sha256(b"").hexdigest()
@@ -72,7 +89,7 @@ def execute_release(incident_id: str, version: str):
     patch_sha256 = hashlib.sha256(diff_content.encode()).hexdigest()
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    # 3. Cryptographic Hash Chaining:
+    # 4. Cryptographic Hash Chaining:
     # ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
     genesis_hash = "0" * 64
     prev_chain_hash = genesis_hash
@@ -99,7 +116,7 @@ def execute_release(incident_id: str, version: str):
         f"PREV_HASH={prev_chain_hash} | CHAIN_HASH={chain_hash}\n"
     )
 
-    # 4. Durability: POSIX exclusive file lock (fcntl.flock) + os.fsync
+    # 5. Durability: POSIX exclusive file lock (fcntl.flock) + os.fsync
     with open(AUDIT_LOG, "a+") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:

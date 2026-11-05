@@ -117,13 +117,31 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     total_redactions += kv_matches;
     text = re_kv_secrets.replace_all(&text, "$1=[REDACTED_SECRET]").to_string();
 
-    // 3. Redact Email addresses
+    // 3. Redact AWS Access Keys: AKIA[0-9A-Z]{16}
+    let re_aws = Regex::new(r"\bAKIA[0-9A-Z]{16}\b").unwrap();
+    let aws_matches = re_aws.find_iter(&text).count();
+    total_redactions += aws_matches;
+    text = re_aws.replace_all(&text, "[REDACTED_AWS_KEY]").to_string();
+
+    // 4. Redact Private Keys: -----BEGIN.*PRIVATE KEY-----
+    let re_priv_key = Regex::new(r"(?s)-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----.*?-----END[ A-Z0-9_-]*PRIVATE KEY-----|-----BEGIN[ A-Z0-9_-]*PRIVATE KEY[^\r\n]*").unwrap();
+    let priv_matches = re_priv_key.find_iter(&text).count();
+    total_redactions += priv_matches;
+    text = re_priv_key.replace_all(&text, "[REDACTED_PRIVATE_KEY]").to_string();
+
+    // 5. Redact Credit Card / PAN patterns (e.g. 4532-xxxx-xxxx-xxxx, 16 digit PANs)
+    let re_cc = Regex::new(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|(?:[0-9]{4}[ -]?){3}[0-9]{4})\b").unwrap();
+    let cc_matches = re_cc.find_iter(&text).count();
+    total_redactions += cc_matches;
+    text = re_cc.replace_all(&text, "[REDACTED_CREDIT_CARD]").to_string();
+
+    // 6. Redact Email addresses
     let re_email = Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap();
     let email_matches = re_email.find_iter(&text).count();
     total_redactions += email_matches;
     text = re_email.replace_all(&text, "[REDACTED_EMAIL]").to_string();
 
-    // 4. Redact IPv4 addresses
+    // 7. Redact IPv4 addresses
     let re_ipv4 = Regex::new(r"\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b").unwrap();
     let ip_matches = re_ipv4.find_iter(&text).count();
     total_redactions += ip_matches;
@@ -256,7 +274,7 @@ fn record_or_check_dedup(
             entry.first_seen = now_iso.clone();
             entry.last_seen = now_iso;
             entry.last_timestamp_secs = now_secs;
-            ("NEW".to_string(), 1)
+            ("FIRST_SEEN".to_string(), 1)
         }
     } else {
         let entry = DedupEntry {
@@ -268,7 +286,7 @@ fn record_or_check_dedup(
             last_timestamp_secs: now_secs,
         };
         index.fingerprints.insert(fault_fingerprint.to_string(), entry);
-        ("NEW".to_string(), 1)
+        ("FIRST_SEEN".to_string(), 1)
     };
 
     if let Ok(json_str) = serde_json::to_string_pretty(&index) {
@@ -292,7 +310,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let target = Path::new(path_str);
     let mut diff_text = String::new();
 
-    // 1. Try git diff HEAD on target to capture staged + unstaged changes
+    // 1. Inspect diff against HEAD to include both staged and unstaged changes
     if let Ok(output) = Command::new("git")
         .args(["-C", path_str, "diff", "HEAD"])
         .output()
@@ -300,7 +318,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         diff_text.push_str(&String::from_utf8_lossy(&output.stdout));
     }
 
-    // Also check cached diff if unstaged was empty
+    // Fallback: check cached diff if unstaged was empty
     if diff_text.trim().is_empty() {
         if let Ok(output) = Command::new("git")
             .args(["-C", path_str, "diff", "--cached"])
@@ -310,7 +328,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // If still empty and commits exist, check HEAD~1 HEAD
+    // Fallback: check HEAD~1 HEAD if working tree is clean
     if diff_text.trim().is_empty() {
         if let Ok(output) = Command::new("git")
             .args(["-C", path_str, "diff", "HEAD~1", "HEAD"])
@@ -320,150 +338,187 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // --- EDGE CASE A: Empty-patch rejection (AST-SEC-00) ---
-    if diff_text.trim().is_empty() {
-        return VerifyOutput {
-            verdict: "BLOCKED".to_string(),
-            status: "EMPTY_PATCH_REJECTED".to_string(),
-            target_path: target.display().to_string(),
-            sha256: format!("{:x}", Sha256::digest(diff_text.as_bytes())),
-            forbidden_findings: vec!["AST-SEC-00: EMPTY_PATCH — git diff returned 0 bytes; no changes to release.".to_string()],
-            rules: vec![VerifyRule {
-                rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
-                status: "FAIL".to_string(),
-                description: "Rejects empty diffs (0-byte patches)".to_string(),
-            }],
-        };
+    let diff_hash = format!("{:x}", Sha256::digest(diff_text.as_bytes()));
+
+    // Split diff by file blocks
+    let mut file_diffs: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
+    let mut current_file = String::new();
+    let mut current_added: Vec<String> = Vec::new();
+    let mut current_deleted: Vec<String> = Vec::new();
+
+    for line in diff_text.lines() {
+        if line.starts_with("diff --git") {
+            if !current_file.is_empty() {
+                file_diffs.push((current_file.clone(), current_added.clone(), current_deleted.clone()));
+                current_added.clear();
+                current_deleted.clear();
+            }
+            // Parse filename from diff --git a/path b/path
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                let path_b = parts[3].trim_start_matches("b/");
+                current_file = path_b.to_string();
+            } else {
+                current_file = line.to_string();
+            }
+        } else if line.starts_with('+') && !line.starts_with("+++") {
+            current_added.push(line.to_string());
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            current_deleted.push(line.to_string());
+        }
+    }
+    if !current_file.is_empty() {
+        file_diffs.push((current_file, current_added, current_deleted));
     }
 
-    let added_lines: Vec<&str> = diff_text
-        .lines()
-        .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
+    // Count changes in .py application files (non-test files)
+    let app_py_files: Vec<&(String, Vec<String>, Vec<String>)> = file_diffs
+        .iter()
+        .filter(|(f, _, _)| f.ends_with(".py") && !f.contains("test_") && !f.contains("/tests/"))
         .collect();
 
-    let files_changed = diff_text.lines().filter(|l| l.starts_with("diff --git")).count();
-    if files_changed == 0 || added_lines.is_empty() {
+    let app_py_lines_added: usize = app_py_files.iter().map(|(_, a, _)| a.len()).sum();
+    let app_py_lines_deleted: usize = app_py_files.iter().map(|(_, _, d)| d.len()).sum();
+    let app_py_has_changes = (app_py_lines_added + app_py_lines_deleted) > 0;
+
+    // Reject empty diffs if no lines are changed in .py application files (exit code 3)
+    if diff_text.trim().is_empty() || !app_py_has_changes {
         return VerifyOutput {
             verdict: "BLOCKED".to_string(),
             status: "EMPTY_PATCH_REJECTED".to_string(),
             target_path: target.display().to_string(),
-            sha256: format!("{:x}", Sha256::digest(diff_text.as_bytes())),
-            forbidden_findings: vec![format!("AST-SEC-00: EMPTY_PATCH — files_changed={}, lines_added={}", files_changed, added_lines.len())],
+            sha256: diff_hash,
+            forbidden_findings: vec![format!(
+                "AST-SEC-00: EMPTY_PATCH_REJECTED — No changes in .py application files (app_files={}, app_lines_added={}, app_lines_deleted={})",
+                app_py_files.len(),
+                app_py_lines_added,
+                app_py_lines_deleted
+            )],
             rules: vec![VerifyRule {
                 rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
                 status: "FAIL".to_string(),
-                description: "Rejects diffs with no substantive code additions".to_string(),
+                description: "Rejects empty diffs or diffs without modifications to .py application files".to_string(),
             }],
         };
     }
 
-    let mut findings = Vec::new();
+    let mut findings: Vec<String> = Vec::new();
 
-    let forbidden_primitives = [
-        ("eval", "Forbidden dynamic execution primitive: eval()"),
-        ("exec", "Forbidden dynamic execution primitive: exec()"),
-        ("os.system", "Forbidden shell execution: os.system"),
-        ("subprocess", "Forbidden process spawning: subprocess"),
-        ("shell=True", "Forbidden shell elevation: shell=True"),
-        ("shell = True", "Forbidden shell elevation: shell=True"),
-        ("__import__", "Forbidden dynamic import: __import__"),
-        ("sk_live_", "Forbidden secret: live secret key"),
-        ("AIzaSy", "Forbidden secret: Google API key"),
+    // AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — Block modifications to .git/, .env, or *.sh files
+    for (filename, _, _) in &file_diffs {
+        if filename.contains(".git/") || filename.contains("/.git") || filename == ".git" {
+            findings.push(format!("AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — modification to .git path detected in '{}'", filename));
+        }
+        if filename.contains(".env") {
+            findings.push(format!("AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — modification to .env file detected in '{}'", filename));
+        }
+        if filename.ends_with(".sh") {
+            findings.push(format!("AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — modification to shell script detected in '{}'", filename));
+        }
+    }
+
+    // AST-SEC-06: NO_TEST_TAMPERING — Block diffs that delete def test_ or remove assert in test_*.py
+    for (filename, _, deleted) in &file_diffs {
+        let is_test = filename.contains("test_") || filename.contains("/tests/") || filename.ends_with("_test.py");
+        if is_test {
+            for del_line in deleted {
+                let trimmed = del_line.trim_start_matches('-').trim();
+                if trimmed.contains("def test_") {
+                    findings.push(format!("AST-SEC-06: NO_TEST_TAMPERING — deletion of test function 'def test_' in '{}': '{}'", filename, trimmed));
+                }
+                if trimmed.starts_with("assert ") || trimmed.starts_with("assert(") || trimmed.contains(" assert ") {
+                    findings.push(format!("AST-SEC-06: NO_TEST_TAMPERING — deletion of assertion statement in '{}': '{}'", filename, trimmed));
+                }
+            }
+        }
+    }
+
+    // All added lines inspection
+    let all_added: Vec<String> = file_diffs.iter().flat_map(|(_, a, _)| a.clone()).collect();
+
+    // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, builtins, os.popen, pty.spawn, shutil.rmtree, socket.
+    let obfuscated_tokens = [
+        ("getattr(", "Forbidden dynamic attribute access: getattr("),
+        ("builtins", "Forbidden builtins module manipulation"),
         ("os.popen", "Forbidden shell execution: os.popen"),
-        ("pty.spawn", "Forbidden shell execution: pty.spawn"),
-        ("shutil.rmtree", "Forbidden destructive operation: shutil.rmtree"),
-        ("getattr(__builtins__", "Forbidden builtins bypass: getattr(__builtins__)"),
-        ("importlib", "Forbidden dynamic import: importlib"),
-        ("compile(", "Forbidden code compilation: compile()"),
-        ("pickle.loads", "Forbidden deserialization: pickle.loads"),
+        ("pty.spawn", "Forbidden pseudo-terminal spawn: pty.spawn"),
+        ("shutil.rmtree", "Forbidden filesystem destruction: shutil.rmtree"),
+        ("socket.", "Forbidden raw socket network access: socket."),
     ];
 
-    for line in &added_lines {
-        for (token, desc) in &forbidden_primitives {
+    for line in &all_added {
+        for (token, desc) in &obfuscated_tokens {
+            if line.contains(token) {
+                findings.push(format!("AST-SEC-08: NO_OBFUSCATED_EXEC — {}: found '{}' in '{}'", desc, token, line.trim()));
+            }
+        }
+    }
+
+    // Baseline security checks (AST-SEC-01 through 05)
+    let baseline_primitives = [
+        ("eval(", "AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive: eval()"),
+        ("exec(", "AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive: exec()"),
+        ("os.system", "AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution: os.system"),
+        ("subprocess", "AST-SEC-03: NO_SUBPROCESS — Forbidden process spawning: subprocess"),
+        ("shell=True", "AST-SEC-03: NO_SUBPROCESS — Forbidden shell elevation: shell=True"),
+        ("shell = True", "AST-SEC-03: NO_SUBPROCESS — Forbidden shell elevation: shell=True"),
+        ("__import__", "AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import: __import__"),
+        ("importlib", "AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import: importlib"),
+        ("sk_live_", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: live secret key"),
+        ("AIzaSy", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: Google API key"),
+        ("AKIA", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: AWS Access Key ID"),
+    ];
+
+    for line in &all_added {
+        for (token, desc) in &baseline_primitives {
             if line.contains(token) {
                 findings.push(format!("{}: found '{}' in '{}'", desc, token, line.trim()));
             }
         }
     }
 
-    // --- EDGE CASE B: Anti-reward-hacking (AST-SEC-06) ---
-    let diff_file_headers: Vec<&str> = diff_text.lines()
-        .filter(|l| l.starts_with("diff --git"))
-        .collect();
-
-    let modifies_source = diff_file_headers.iter()
-        .any(|h| !h.contains("test_") && h.contains(".py"));
-    let modifies_tests = diff_file_headers.iter()
-        .any(|h| h.contains("test_"));
-
-    if modifies_tests && !modifies_source {
-        findings.push("AST-SEC-06: NO_TEST_TAMPERING — test file(s) modified but no production source file changed. Suspected reward hacking.".to_string());
-    }
-
-    let deleted_lines: Vec<&str> = diff_text.lines()
-        .filter(|l| l.starts_with('-') && !l.starts_with("---"))
-        .collect();
-
-    for line in &deleted_lines {
-        let trimmed = line.trim_start_matches('-').trim();
-        if trimmed.starts_with("assert") || trimmed.contains("assert ") {
-            findings.push(format!("AST-SEC-06: NO_TEST_TAMPERING — deleted assertion detected: '{}'", trimmed));
-        }
-    }
-
-    // --- AST-SEC-08: Protected paths ---
-    let protected_paths = [".git/", ".env", ".sh"];
-    for header in &diff_file_headers {
-        for protected in &protected_paths {
-            if header.contains(protected) {
-                findings.push(format!("AST-SEC-08: PROTECTED_PATH — diff touches protected path '{}' in '{}'", protected, header));
-            }
-        }
-    }
-
-    let diff_hash = format!("{:x}", Sha256::digest(diff_text.as_bytes()));
     let is_blocked = !findings.is_empty();
 
     let rules = vec![
         VerifyRule {
             rule: "AST-SEC-01: NO_EVAL_EXEC".to_string(),
-            status: if findings.iter().any(|f| f.contains("eval") || f.contains("exec")) { "FAIL".to_string() } else { "PASS".to_string() },
+            status: if findings.iter().any(|f| f.contains("AST-SEC-01")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Rejects eval() and exec() primitives".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-02: NO_OS_SYSTEM".to_string(),
-            status: if findings.iter().any(|f| f.contains("os.system")) { "FAIL".to_string() } else { "PASS".to_string() },
+            status: if findings.iter().any(|f| f.contains("AST-SEC-02")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Rejects os.system calls".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-03: NO_SUBPROCESS".to_string(),
-            status: if findings.iter().any(|f| f.contains("subprocess") || f.contains("shell=True")) { "FAIL".to_string() } else { "PASS".to_string() },
+            status: if findings.iter().any(|f| f.contains("AST-SEC-03")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Rejects raw subprocess and shell=True".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-04: NO_DYNAMIC_IMPORT".to_string(),
-            status: if findings.iter().any(|f| f.contains("__import__")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Rejects __import__ calls".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-04")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Rejects dynamic imports (__import__, importlib)".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-05: NO_HARDCODED_SECRETS".to_string(),
-            status: if findings.iter().any(|f| f.contains("sk_live_") || f.contains("AIzaSy")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Rejects hardcoded API keys and secrets".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-05")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Rejects hardcoded API keys, JWTs, and AWS secrets".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-06: NO_TEST_TAMPERING".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-06")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Blocks test deletion or assertion weakening (anti-reward-hacking)".to_string(),
+            description: "Block any diff that deletes existing def test_ functions or removes assert statements from test_*.py".to_string(),
         },
         VerifyRule {
-            rule: "AST-SEC-07: NO_EVASION_PRIMITIVES".to_string(),
-            status: if findings.iter().any(|f| f.contains("os.popen") || f.contains("pty.spawn") || f.contains("shutil.rmtree") || f.contains("getattr") || f.contains("importlib") || f.contains("compile(") || f.contains("pickle")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Blocks evasion primitives (os.popen, pty.spawn, importlib, pickle, etc.)".to_string(),
+            rule: "AST-SEC-07: NO_GIT_OR_ENV_TAMPERING".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-07")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Block modifications to .git/, .env, or *.sh files".to_string(),
         },
         VerifyRule {
-            rule: "AST-SEC-08: NO_PROTECTED_PATHS".to_string(),
+            rule: "AST-SEC-08: NO_OBFUSCATED_EXEC".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-08")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Blocks diffs touching .git/, .env, or .sh files".to_string(),
+            description: "Block getattr(, builtins, os.popen, pty.spawn, shutil.rmtree, and socket.".to_string(),
         },
     ];
 
