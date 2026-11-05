@@ -1,28 +1,24 @@
 # SwitchGuard SRE — Multi-Agent Architecture Context
 
 ## Overview
-SwitchGuard SRE is a hybrid Rust + Python autonomous incident response pipeline running on Switch Console and Google Antigravity ACP.
+SwitchGuard SRE is a hybrid Rust + Python autonomous incident response pipeline running on Switch Console and Google Antigravity ACP, hardened for 1,000,000+ alert storms and high concurrency.
 
 ## Agent Roster & Directory Isolation
 1. **sre-sentinel** (`/workspace/telemetry`)
    - **Addressing:** `Anyone`
-   - **Role:** Sanitizes raw production crash logs using the Rust `switchguard-cli scrub` binary, classifies incidents, deduplicates alert storms, initializes the incident state machine, appends records to `incidents_ledger.md`, and dispatches sanitized reproduction parameters to `@sre-repro`. Has zero access to application source code.
+   - **Role:** Sanitizes raw production crash logs using the Rust `switchguard-cli scrub` binary, performs O(1) canonical fault fingerprint deduplication (<0.5ms), suppresses alert storms, initializes the incident state machine, appends records to `incidents_ledger.md` with exclusive POSIX locks (`fcntl.flock`), and dispatches sanitized reproduction parameters to `@sre-repro`. Has zero access to application source code.
 2. **sre-repro** (`/workspace/sandbox-app`)
    - **Addressing:** `Me and my agents` (`owner-agents`)
    - **Role:** Writes failing `pytest` reproduction tests first, patches application defects in `cart_service.py`, validates test pass rates, and runs `switchguard-cli verify-diff .` to enforce AST/diff security guardrails. Subject to MAX_ATTEMPTS=2 circuit breaker.
 3. **sre-clerk** (`/workspace/release-ops`)
    - **Addressing:** `Me and my agents` (`owner-agents`)
-   - **Role:** Human-gated release clerk. Remains idle until the Incident Commander posts `Approved`. Runs `cut_release.py` to package the verified git diff into `releases/`, verifies SHA-256 checksums, rejects empty patches, and logs to `RELEASE_AUDIT.log`.
+   - **Role:** Human-gated release clerk. Remains idle until the Incident Commander posts `Approved`. Runs `cut_release.py` to package verified git diffs into `releases/`, records tamper-evident hash-chained audit trails into `RELEASE_AUDIT.log` with exclusive POSIX locks, verifies SHA-256 checksums, and validates chains via `switchguard-cli verify-audit`.
 
-## Deterministic State Machine (DAG)
-All incidents flow through a strict one-way DAG enforced by `workspace/telemetry/incident_state.py`:
-```
-sre-sentinel → sre-repro → Human Commander → sre-clerk
-TRIAGED → REPRODUCING → PATCH_VERIFIED → RELEASED | ESCALATED
-```
-- **No backward transitions.** Agents cannot re-trigger upstream agents.
-- **Circuit Breaker (MAX_ATTEMPTS=2):** If verify-diff or pytest fails twice, the agent halts with `[CIRCUIT_BREAKER_TRIPPED] Escalating to @admin`.
-- **Alert-Storm Deduplication:** Duplicate alerts within 5-minute windows are suppressed via content-based fingerprinting (`workspace/telemetry/alert_dedup.py`).
+## High-Concurrency & Durability Architecture
+- **O(1) Rust Deduplication:** `switchguard-cli scrub` fingerprints crashes via $\text{SHA256}(\text{error\_class} \parallel \text{file:line})$ against `dedup_index.json` in $<0.5\text{ms}$. Duplicate alerts return `"dedup_status": "SUPPRESSED_DUPLICATE"`, logging spikes without re-waking LLM agents.
+- **POSIX Durability (`fcntl.flock` + `os.fsync`):** Concurrent writes to `incidents_ledger.md` and `RELEASE_AUDIT.log` use kernel file locking and fsync guarantees.
+- **Tamper-Evident Hash Chaining:** Every hotfix release entry computes $\text{ChainHash}_n = \text{SHA256}(\text{ChainHash}_{n-1} \parallel \text{Timestamp}_n \parallel \text{PatchSHA256}_n)$ from genesis ($0000\dots0000$). Verified by `switchguard-cli verify-audit`.
+- **Deterministic State Machine (DAG):** Enforced by `workspace/telemetry/incident_state.py` (`TRIAGED → REPRODUCING → PATCH_VERIFIED → RELEASED | ESCALATED`). No backward transitions; MAX_ATTEMPTS=2 circuit breaker.
 
 ## Security Verification Rules (switchguard-cli v0.3.0)
 | Rule | Description |

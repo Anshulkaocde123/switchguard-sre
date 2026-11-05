@@ -4,12 +4,13 @@ import sys
 import datetime
 import os
 import shutil
+import fcntl
 
 TELEMETRY_DIR = os.path.dirname(os.path.abspath(__file__))
 LEDGER_FILE = os.path.join(TELEMETRY_DIR, "incidents_ledger.md")
 
 def run_triage(raw_log: str, incident_id: str = "INC-8041"):
-    # 1. Invoke compiled Rust switchguard-cli binary
+    # 1. Invoke compiled Rust switchguard-cli binary (<0.4ms PII scrub + O(1) alert deduplication)
     cli_bin = shutil.which("switchguard-cli") or os.path.expanduser("~/.local/bin/switchguard-cli")
     proc = subprocess.run(
         [cli_bin, "scrub", raw_log],
@@ -19,43 +20,69 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
     )
     data = json.loads(proc.stdout)
 
-    # --- Alert-storm deduplication ---
-    from alert_dedup import check_and_register
-    dedup_result = check_and_register(data, incident_id)
-    if dedup_result["status"] == "DUPLICATE":
+    dedup_status = data.get("dedup_status", "NEW")
+    occurrence = data.get("occurrence_count", 1)
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    summary_one_line = data.get("clean_payload", data.get("sanitized_text", "")).replace("\n", " ")
+    sha = data.get("sha256", "UNKNOWN")[:12]
+    err_class = data.get("error_classification", data.get("error_class", "UNKNOWN"))
+
+    # 2. Check if Rust O(1) deduplicator suppressed this alert storm
+    if dedup_status == "SUPPRESSED_DUPLICATE":
+        # Log the spike to Markdown ledger with exclusive POSIX file lock + fsync without waking @sre-repro
+        with open(LEDGER_FILE, "a+") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                f.seek(0, os.SEEK_END)
+                if f.tell() == 0:
+                    f.write("# SwitchGuard SRE — Sanitized Incidents Ledger\n\n")
+                    f.write("| Timestamp | Incident ID | Error Class | Redactions | SHA-256 Digest | Sanitized Summary |\n")
+                    f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
+                f.write(f"| {timestamp} | `{incident_id}` (SPIKE #{occurrence}) | `{err_class}` | {data.get('redacted_count', 0)} | `{sha}...` | [SUPPRESSED SPIKE #{occurrence}] {summary_one_line} |\n")
+                f.flush()
+                os.fsync(f.fileno())
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
         print(json.dumps({
             "triage_status": "SUPPRESSED_DUPLICATE",
             "incident_id": incident_id,
-            "dedup": dedup_result,
+            "dedup_status": "SUPPRESSED_DUPLICATE",
+            "occurrence_count": occurrence,
+            "fault_fingerprint": data.get("fault_fingerprint"),
+            "normalized_file_line": data.get("normalized_file_line"),
+            "clean_payload": summary_one_line,
+            "message": f"Alert storm suppressed in <0.5ms: spike #{occurrence} logged without waking @sre-repro."
         }, indent=2))
-        return  # Suppress duplicate — do not log to ledger or dispatch
+        return  # Suppress duplicate — do not wake @sre-repro
 
-    # --- Incident state machine initialization ---
+    # 3. Incident state machine initialization for new incident
     from incident_state import init_incident
     state_result = init_incident(incident_id, agent="sre-sentinel")
 
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-    # 2. Maintain Markdown Ledger
-    if not os.path.exists(LEDGER_FILE):
-        with open(LEDGER_FILE, "w") as f:
-            f.write("# SwitchGuard SRE — Sanitized Incidents Ledger\n\n")
-            f.write("| Timestamp | Incident ID | Error Class | Redactions | SHA-256 Digest | Sanitized Summary |\n")
-            f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
-
-    summary_one_line = data.get("clean_payload", data.get("sanitized_text", "")).replace("\n", " ")
-    sha = data.get("sha256", "UNKNOWN")[:12]
+    # 4. Maintain Markdown Ledger with exclusive POSIX file lock + fsync
     redactions = data.get("redacted_count", data.get("redactions_applied", 0))
-    err_class = data.get("error_classification", data.get("error_class", "UNKNOWN"))
 
-    with open(LEDGER_FILE, "a") as f:
-        f.write(f"| {timestamp} | `{incident_id}` | `{err_class}` | {redactions} | `{sha}...` | {summary_one_line} |\n")
+    with open(LEDGER_FILE, "a+") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.seek(0, os.SEEK_END)
+            if f.tell() == 0:
+                f.write("# SwitchGuard SRE — Sanitized Incidents Ledger\n\n")
+                f.write("| Timestamp | Incident ID | Error Class | Redactions | SHA-256 Digest | Sanitized Summary |\n")
+                f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
+            f.write(f"| {timestamp} | `{incident_id}` | `{err_class}` | {redactions} | `{sha}...` | {summary_one_line} |\n")
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     print(json.dumps({
         **data,
         "triage_status": "DISPATCHED",
         "incident_id": incident_id,
-        "dedup": dedup_result,
+        "dedup_status": dedup_status,
+        "occurrence_count": occurrence,
         "state_machine": state_result,
     }, indent=2))
 

@@ -5,6 +5,7 @@ import json
 import os
 import hashlib
 import shutil
+import fcntl
 
 SANDBOX_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../sandbox-app"))
 RELEASES_DIR = os.path.join(os.path.dirname(__file__), "releases")
@@ -71,14 +72,43 @@ def execute_release(incident_id: str, version: str):
     patch_sha256 = hashlib.sha256(diff_content.encode()).hexdigest()
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
+    # 3. Cryptographic Hash Chaining:
+    # ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+    genesis_hash = "0" * 64
+    prev_chain_hash = genesis_hash
+
+    if os.path.exists(AUDIT_LOG):
+        with open(AUDIT_LOG, "r") as f:
+            for line in f:
+                line_str = line.strip()
+                if "CHAIN_HASH=" in line_str:
+                    parts = line_str.split("CHAIN_HASH=")
+                    if len(parts) > 1:
+                        cand = parts[1].strip().split()[0].split("|")[0].strip()
+                        if len(cand) == 64:
+                            prev_chain_hash = cand
+
+    chain_payload = f"{prev_chain_hash}{timestamp}{patch_sha256}"
+    chain_hash = hashlib.sha256(chain_payload.encode("utf-8")).hexdigest()
+
     log_entry = (
         f"[{timestamp}] HOTFIX RELEASED: {version} for {incident_id} | "
         f"AST_AUDIT={audit_data.get('verdict', audit_data.get('status'))} | "
-        f"PATCH={patch_filename} | SHA256={patch_sha256[:16]} | "
-        f"FILES={files_changed} | LINES_ADDED={lines_added}\n"
+        f"PATCH={patch_filename} | SHA256={patch_sha256} | "
+        f"FILES={files_changed} | LINES_ADDED={lines_added} | "
+        f"PREV_HASH={prev_chain_hash} | CHAIN_HASH={chain_hash}\n"
     )
-    with open(AUDIT_LOG, "a") as f:
-        f.write(log_entry)
+
+    # 4. Durability: POSIX exclusive file lock (fcntl.flock) + os.fsync
+    with open(AUDIT_LOG, "a+") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.seek(0, os.SEEK_END)
+            f.write(log_entry)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     print(json.dumps({
         "release_status": "DEPLOYED",
@@ -88,7 +118,9 @@ def execute_release(incident_id: str, version: str):
         "patch_artifact": f"releases/{patch_filename}",
         "patch_sha256": patch_sha256,
         "files_changed": files_changed,
-        "lines_added": lines_added
+        "lines_added": lines_added,
+        "prev_chain_hash": prev_chain_hash,
+        "chain_hash": chain_hash
     }, indent=2))
 
 if __name__ == "__main__":

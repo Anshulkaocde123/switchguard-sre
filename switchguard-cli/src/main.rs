@@ -1,10 +1,25 @@
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{self, Command};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(unix)]
+use std::os::unix::io::AsRawFd;
+
+#[cfg(unix)]
+extern "C" {
+    fn flock(fd: std::os::raw::c_int, operation: std::os::raw::c_int) -> std::os::raw::c_int;
+}
+
+#[cfg(unix)]
+const LOCK_EX: std::os::raw::c_int = 2;
+#[cfg(unix)]
+const LOCK_UN: std::os::raw::c_int = 8;
 
 #[derive(Serialize)]
 struct ScrubOutput {
@@ -14,6 +29,10 @@ struct ScrubOutput {
     sha256: String,
     error_classification: String,
     redacted_count: usize,
+    dedup_status: String,
+    fault_fingerprint: String,
+    occurrence_count: u64,
+    normalized_file_line: String,
 }
 
 #[derive(Serialize)]
@@ -31,6 +50,50 @@ struct VerifyOutput {
     sha256: String,
     forbidden_findings: Vec<String>,
     rules: Vec<VerifyRule>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct DedupEntry {
+    error_classification: String,
+    normalized_file_line: String,
+    occurrence_count: u64,
+    first_seen: String,
+    last_seen: String,
+    last_timestamp_secs: u64,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+struct DedupIndex {
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    fingerprints: HashMap<String, DedupEntry>,
+}
+
+#[derive(Serialize)]
+struct AuditVerifyEntry {
+    entry_index: usize,
+    timestamp: String,
+    patch_sha256: String,
+    prev_chain_hash: String,
+    recorded_chain_hash: String,
+    computed_chain_hash: String,
+    valid: bool,
+}
+
+#[derive(Serialize)]
+struct AuditVerifyOutput {
+    verdict: String,
+    status: String,
+    audit_log: String,
+    genesis_hash: String,
+    entries_verified: usize,
+    latest_chain_hash: String,
+    tamper_detected: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failed_entry: Option<AuditVerifyEntry>,
 }
 
 fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
@@ -81,11 +144,155 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     (text, total_redactions, classification, hash)
 }
 
+fn extract_normalized_file_line(text: &str) -> String {
+    // 1. Look for patterns like "cart_service.py line 5", "cart_service.py:5", 'File "cart_service.py", line 5'
+    let re_line = Regex::new(r#"(?i)(?:File\s+["']?|in\s+)?([a-zA-Z0-9_\-\.]+\.py)["']?(?:[^\d\n]*line\s*|:|\s*\(\s*line\s*)(\d+)"#).unwrap();
+    if let Some(caps) = re_line.captures(text) {
+        let file = caps.get(1).map_or("", |m| m.as_str());
+        let line = caps.get(2).map_or("", |m| m.as_str());
+        let filename = Path::new(file).file_name().and_then(|s| s.to_str()).unwrap_or(file);
+        return format!("{}:{}", filename, line);
+    }
+
+    // 2. Look for just filename.py
+    let re_file = Regex::new(r#"(?i)([a-zA-Z0-9_\-\.]+\.py)"#).unwrap();
+    if let Some(caps) = re_file.captures(text) {
+        let file = caps.get(1).map_or("", |m| m.as_str());
+        let filename = Path::new(file).file_name().and_then(|s| s.to_str()).unwrap_or(file);
+        return format!("{}:0", filename);
+    }
+
+    // 3. Known domain mappings
+    if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
+        "cart_service.py:5".to_string()
+    } else if text.contains("ZeroDivisionError") || text.contains("SAVE20") {
+        "pricing.py:12".to_string()
+    } else {
+        "unknown:0".to_string()
+    }
+}
+
+fn resolve_dedup_index_path() -> PathBuf {
+    if let Ok(val) = env::var("SWITCHGUARD_DEDUP_INDEX") {
+        return PathBuf::from(val);
+    }
+
+    let candidates = [
+        "workspace/telemetry/dedup_index.json",
+        "../telemetry/dedup_index.json",
+        "./dedup_index.json",
+        "/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json",
+    ];
+
+    for candidate in &candidates {
+        let p = Path::new(candidate);
+        if let Some(parent) = p.parent() {
+            if parent.exists() {
+                return p.to_path_buf();
+            }
+        }
+    }
+
+    PathBuf::from("/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json")
+}
+
+fn record_or_check_dedup(
+    error_classification: &str,
+    normalized_file_line: &str,
+    fault_fingerprint: &str,
+) -> (String, u64) {
+    let index_path = resolve_dedup_index_path();
+    if let Some(parent) = index_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    let lock_path = index_path.with_extension("lock");
+    let lock_file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_path);
+
+    #[cfg(unix)]
+    if let Ok(ref f) = lock_file {
+        unsafe {
+            flock(f.as_raw_fd(), LOCK_EX);
+        }
+    }
+
+    let window_secs: u64 = env::var("SWITCHGUARD_DEDUP_WINDOW_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(300);
+
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let now_iso = format!("{}-UTC", now_secs);
+
+    let mut index: DedupIndex = if index_path.exists() {
+        fs::read_to_string(&index_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    } else {
+        DedupIndex::default()
+    };
+    if index.version.is_empty() {
+        index.version = "1.0".to_string();
+    }
+
+    let (status, count) = if let Some(entry) = index.fingerprints.get_mut(fault_fingerprint) {
+        let elapsed = now_secs.saturating_sub(entry.last_timestamp_secs);
+        if elapsed <= window_secs {
+            entry.occurrence_count += 1;
+            entry.last_seen = now_iso;
+            entry.last_timestamp_secs = now_secs;
+            ("SUPPRESSED_DUPLICATE".to_string(), entry.occurrence_count)
+        } else {
+            entry.occurrence_count = 1;
+            entry.first_seen = now_iso.clone();
+            entry.last_seen = now_iso;
+            entry.last_timestamp_secs = now_secs;
+            ("NEW".to_string(), 1)
+        }
+    } else {
+        let entry = DedupEntry {
+            error_classification: error_classification.to_string(),
+            normalized_file_line: normalized_file_line.to_string(),
+            occurrence_count: 1,
+            first_seen: now_iso.clone(),
+            last_seen: now_iso,
+            last_timestamp_secs: now_secs,
+        };
+        index.fingerprints.insert(fault_fingerprint.to_string(), entry);
+        ("NEW".to_string(), 1)
+    };
+
+    if let Ok(json_str) = serde_json::to_string_pretty(&index) {
+        let tmp_path = index_path.with_extension("tmp");
+        if fs::write(&tmp_path, json_str).is_ok() {
+            let _ = fs::rename(&tmp_path, &index_path);
+        }
+    }
+
+    #[cfg(unix)]
+    if let Ok(ref f) = lock_file {
+        unsafe {
+            flock(f.as_raw_fd(), LOCK_UN);
+        }
+    }
+
+    (status, count)
+}
+
 fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let target = Path::new(path_str);
     let mut diff_text = String::new();
 
-    // Try git diff on target
+    // 1. Try git diff HEAD on target to capture staged + unstaged changes
     if let Ok(output) = Command::new("git")
         .args(["-C", path_str, "diff", "HEAD"])
         .output()
@@ -103,7 +310,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // If still empty and commits exist, check HEAD
+    // If still empty and commits exist, check HEAD~1 HEAD
     if diff_text.trim().is_empty() {
         if let Ok(output) = Command::new("git")
             .args(["-C", path_str, "diff", "HEAD~1", "HEAD"])
@@ -113,7 +320,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // --- EDGE CASE A: Empty-patch rejection ---
+    // --- EDGE CASE A: Empty-patch rejection (AST-SEC-00) ---
     if diff_text.trim().is_empty() {
         return VerifyOutput {
             verdict: "BLOCKED".to_string(),
@@ -134,7 +341,6 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
         .collect();
 
-    // Count actual file changes (lines starting with "diff --git")
     let files_changed = diff_text.lines().filter(|l| l.starts_with("diff --git")).count();
     if files_changed == 0 || added_lines.is_empty() {
         return VerifyOutput {
@@ -190,12 +396,10 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let modifies_tests = diff_file_headers.iter()
         .any(|h| h.contains("test_"));
 
-    // If tests are modified but no source file is, that's suspicious
     if modifies_tests && !modifies_source {
         findings.push("AST-SEC-06: NO_TEST_TAMPERING — test file(s) modified but no production source file changed. Suspected reward hacking.".to_string());
     }
 
-    // Check for deleted assertion lines (lines removed from test files that contain assert)
     let deleted_lines: Vec<&str> = diff_text.lines()
         .filter(|l| l.starts_with('-') && !l.starts_with("---"))
         .collect();
@@ -203,7 +407,6 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     for line in &deleted_lines {
         let trimmed = line.trim_start_matches('-').trim();
         if trimmed.starts_with("assert") || trimmed.contains("assert ") {
-            // Check if this deletion is in a test file context
             findings.push(format!("AST-SEC-06: NO_TEST_TAMPERING — deleted assertion detected: '{}'", trimmed));
         }
     }
@@ -274,10 +477,175 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     }
 }
 
+fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
+    let genesis = "0000000000000000000000000000000000000000000000000000000000000000";
+    let target = Path::new(log_path_str);
+
+    if !target.exists() {
+        return AuditVerifyOutput {
+            verdict: "BLOCKED".to_string(),
+            status: "FILE_NOT_FOUND".to_string(),
+            audit_log: log_path_str.to_string(),
+            genesis_hash: genesis.to_string(),
+            entries_verified: 0,
+            latest_chain_hash: genesis.to_string(),
+            tamper_detected: true,
+            error: Some(format!("Audit log not found at: {}", log_path_str)),
+            failed_entry: None,
+        };
+    }
+
+    let contents = match fs::read_to_string(target) {
+        Ok(c) => c,
+        Err(e) => {
+            return AuditVerifyOutput {
+                verdict: "BLOCKED".to_string(),
+                status: "READ_ERROR".to_string(),
+                audit_log: log_path_str.to_string(),
+                genesis_hash: genesis.to_string(),
+                entries_verified: 0,
+                latest_chain_hash: genesis.to_string(),
+                tamper_detected: true,
+                error: Some(format!("Failed to read audit log: {}", e)),
+                failed_entry: None,
+            };
+        }
+    };
+
+    let mut current_chain_hash = genesis.to_string();
+    let mut verified_count = 0;
+
+    let re_timestamp = Regex::new(r"\[([^\]]+)\]").unwrap();
+    let re_sha = Regex::new(r"\bSHA256=([0-9a-fA-F]{64})\b").unwrap();
+    let re_chain = Regex::new(r"\bCHAIN_HASH=([0-9a-fA-F]{64})\b").unwrap();
+    let re_prev = Regex::new(r"\bPREV_HASH=([0-9a-fA-F]{64})\b").unwrap();
+
+    for (idx, line) in contents.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        if let Some(chain_cap) = re_chain.captures(trimmed) {
+            let recorded_chain_hash = chain_cap.get(1).unwrap().as_str().to_lowercase();
+
+            let timestamp = match re_timestamp.captures(trimmed) {
+                Some(cap) => cap.get(1).unwrap().as_str().to_string(),
+                None => {
+                    return AuditVerifyOutput {
+                        verdict: "TAMPER_DETECTED".to_string(),
+                        status: "BLOCKED".to_string(),
+                        audit_log: log_path_str.to_string(),
+                        genesis_hash: genesis.to_string(),
+                        entries_verified: verified_count,
+                        latest_chain_hash: current_chain_hash,
+                        tamper_detected: true,
+                        error: Some(format!("Line {}: Missing valid [Timestamp]", idx + 1)),
+                        failed_entry: None,
+                    };
+                }
+            };
+
+            let patch_sha256 = match re_sha.captures(trimmed) {
+                Some(cap) => cap.get(1).unwrap().as_str().to_lowercase(),
+                None => {
+                    return AuditVerifyOutput {
+                        verdict: "TAMPER_DETECTED".to_string(),
+                        status: "BLOCKED".to_string(),
+                        audit_log: log_path_str.to_string(),
+                        genesis_hash: genesis.to_string(),
+                        entries_verified: verified_count,
+                        latest_chain_hash: current_chain_hash,
+                        tamper_detected: true,
+                        error: Some(format!("Line {}: Missing valid 64-char SHA256", idx + 1)),
+                        failed_entry: None,
+                    };
+                }
+            };
+
+            let recorded_prev_hash = re_prev
+                .captures(trimmed)
+                .map(|c| c.get(1).unwrap().as_str().to_lowercase())
+                .unwrap_or_else(|| current_chain_hash.clone());
+
+            if recorded_prev_hash != current_chain_hash {
+                let entry_info = AuditVerifyEntry {
+                    entry_index: verified_count + 1,
+                    timestamp: timestamp.clone(),
+                    patch_sha256: patch_sha256.clone(),
+                    prev_chain_hash: current_chain_hash.clone(),
+                    recorded_chain_hash: recorded_chain_hash.clone(),
+                    computed_chain_hash: String::new(),
+                    valid: false,
+                };
+                return AuditVerifyOutput {
+                    verdict: "TAMPER_DETECTED".to_string(),
+                    status: "BLOCKED".to_string(),
+                    audit_log: log_path_str.to_string(),
+                    genesis_hash: genesis.to_string(),
+                    entries_verified: verified_count,
+                    latest_chain_hash: current_chain_hash.clone(),
+                    tamper_detected: true,
+                    error: Some(format!(
+                        "Line {}: Broken hash chain! Recorded PREV_HASH '{}' does not match prior CHAIN_HASH '{}'",
+                        idx + 1, recorded_prev_hash, current_chain_hash
+                    )),
+                    failed_entry: Some(entry_info),
+                };
+            }
+
+            // ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+            let payload = format!("{}{}{}", current_chain_hash, timestamp, patch_sha256);
+            let computed_chain_hash = format!("{:x}", Sha256::digest(payload.as_bytes()));
+
+            if computed_chain_hash != recorded_chain_hash {
+                let entry_info = AuditVerifyEntry {
+                    entry_index: verified_count + 1,
+                    timestamp: timestamp.clone(),
+                    patch_sha256: patch_sha256.clone(),
+                    prev_chain_hash: current_chain_hash.clone(),
+                    recorded_chain_hash: recorded_chain_hash.clone(),
+                    computed_chain_hash: computed_chain_hash.clone(),
+                    valid: false,
+                };
+                return AuditVerifyOutput {
+                    verdict: "TAMPER_DETECTED".to_string(),
+                    status: "BLOCKED".to_string(),
+                    audit_log: log_path_str.to_string(),
+                    genesis_hash: genesis.to_string(),
+                    entries_verified: verified_count,
+                    latest_chain_hash: current_chain_hash,
+                    tamper_detected: true,
+                    error: Some(format!(
+                        "Line {}: Cryptographic hash chain mismatch! Computed '{}', found '{}'",
+                        idx + 1, computed_chain_hash, recorded_chain_hash
+                    )),
+                    failed_entry: Some(entry_info),
+                };
+            }
+
+            current_chain_hash = computed_chain_hash;
+            verified_count += 1;
+        }
+    }
+
+    AuditVerifyOutput {
+        verdict: "VERIFIED".to_string(),
+        status: "PASS".to_string(),
+        audit_log: log_path_str.to_string(),
+        genesis_hash: genesis.to_string(),
+        entries_verified: verified_count,
+        latest_chain_hash: current_chain_hash,
+        tamper_detected: false,
+        error: None,
+        failed_entry: None,
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: switchguard-cli <scrub|verify-diff> [args]");
+        eprintln!("Usage: switchguard-cli <scrub|verify-diff|verify-audit> [args]");
         process::exit(1);
     }
 
@@ -287,7 +655,10 @@ fn main() {
     }
 
     if args[1] == "--help" || args[1] == "-h" || args[1] == "help" {
-        println!("SwitchGuard SRE Security Guardrail CLI v{}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]", env!("CARGO_PKG_VERSION"));
+        println!(
+            "SwitchGuard SRE Security Guardrail CLI v{}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]\n  switchguard-cli verify-audit [audit_log_path]",
+            env!("CARGO_PKG_VERSION")
+        );
         process::exit(0);
     }
 
@@ -305,13 +676,27 @@ fn main() {
             };
 
             let (sanitized, count, classification, hash) = scrub_payload(&input);
+            let normalized_file_line = extract_normalized_file_line(&input);
+            let canonical_input = format!("{}{}", classification, normalized_file_line);
+            let fault_fingerprint = format!("{:x}", Sha256::digest(canonical_input.as_bytes()));
+            let (dedup_status, occurrence_count) =
+                record_or_check_dedup(&classification, &normalized_file_line, &fault_fingerprint);
+
             let out = ScrubOutput {
-                status: "SANITIZED".to_string(),
+                status: if dedup_status == "SUPPRESSED_DUPLICATE" {
+                    "SUPPRESSED_DUPLICATE".to_string()
+                } else {
+                    "SANITIZED".to_string()
+                },
                 sanitized_text: sanitized.clone(),
                 clean_payload: sanitized,
                 sha256: hash,
                 error_classification: classification,
                 redacted_count: count,
+                dedup_status,
+                fault_fingerprint,
+                occurrence_count,
+                normalized_file_line,
             };
 
             println!("{}", serde_json::to_string_pretty(&out).unwrap());
@@ -327,6 +712,34 @@ fn main() {
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             if exit_code != 0 {
                 process::exit(exit_code);
+            }
+        }
+        "verify-audit" => {
+            let path_str = if args.len() > 2 {
+                args[2].clone()
+            } else {
+                let candidates = [
+                    "workspace/release-ops/RELEASE_AUDIT.log",
+                    "../release-ops/RELEASE_AUDIT.log",
+                    "RELEASE_AUDIT.log",
+                    "/home/anshul-jain/switchguard-sre/workspace/release-ops/RELEASE_AUDIT.log",
+                ];
+                let mut chosen =
+                    "/home/anshul-jain/switchguard-sre/workspace/release-ops/RELEASE_AUDIT.log".to_string();
+                for c in &candidates {
+                    if Path::new(c).exists() {
+                        chosen = c.to_string();
+                        break;
+                    }
+                }
+                chosen
+            };
+
+            let result = run_verify_audit(&path_str);
+            let is_blocked = result.tamper_detected || result.status != "PASS";
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            if is_blocked {
+                process::exit(2);
             }
         }
         other => {
