@@ -10,6 +10,16 @@
       "patch_sha256": "f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f",
       "summary": "Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL] FLAT100 -0.00",
       "timestamp": "2026-11-05T17:18:54.381336+00:00"
+    },
+    {
+      "error_classification": "NEGATIVE_TOTAL_CALCULATION",
+      "incident_id": "INC-9999",
+      "version": "v1.4.3",
+      "target_file": "cart_service.py",
+      "fix_pattern": "total = max(0.0, subtotal - 100.0)",
+      "patch_sha256": "f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f",
+      "summary": "Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] cart_service.py line 5 FLAT100 -0.00",
+      "timestamp": "2026-11-05T17:54:29.299396+00:00"
     }
   ]
 }

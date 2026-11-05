@@ -18,13 +18,14 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "incident_
 
 # Valid state transitions (one-way DAG)
 VALID_TRANSITIONS = {
-    "TRIAGED":        ["REPRODUCING", "ESCALATED", "ROLLED_BACK"],
-    "SANITIZED":      ["REPRODUCING", "ESCALATED", "ROLLED_BACK"],
-    "REPRODUCING":    ["PATCH_VERIFIED", "ESCALATED", "ROLLED_BACK"],
-    "PATCH_VERIFIED": ["RELEASED", "ESCALATED", "ROLLED_BACK"],
+    "TRIAGED":        ["REPRODUCING", "ESCALATED", "ROLLED_BACK", "CIRCUIT_BROKEN"],
+    "SANITIZED":      ["REPRODUCING", "ESCALATED", "ROLLED_BACK", "CIRCUIT_BROKEN"],
+    "REPRODUCING":    ["PATCH_VERIFIED", "ESCALATED", "ROLLED_BACK", "CIRCUIT_BROKEN"],
+    "PATCH_VERIFIED": ["RELEASED", "ESCALATED", "ROLLED_BACK", "CIRCUIT_BROKEN"],
     "RELEASED":       ["ROLLED_BACK"],  # Can rollback to HEAD
     "ROLLED_BACK":    [],  # Terminal state
     "ESCALATED":      [],  # Terminal state
+    "CIRCUIT_BROKEN": [],  # Terminal state
 }
 
 # Which agent is authorized to make which transitions
@@ -62,7 +63,7 @@ def _save_state(state: dict):
         state.setdefault("incident_id", latest_id)
         state["current_state"] = latest_entry.get("current_state", state.get("current_state", "SANITIZED"))
         state["updated_at"] = latest_entry.get("updated_at", state.get("updated_at", ""))
-        state.setdefault("retry_count", 0)
+        state["retry_count"] = latest_entry.get("retry_count", 0)
 
     tmp_path = STATE_FILE + ".tmp"
     with open(tmp_path, "w") as f:
@@ -134,7 +135,7 @@ def transition(incident_id: str, to_state: str, agent: str, message: str = "") -
     current = incident["current_state"]
 
     # Check terminal state
-    if current in ("RELEASED", "ESCALATED"):
+    if current in ("RELEASED", "ESCALATED", "CIRCUIT_BROKEN"):
         return {
             "status": "REJECTED",
             "error": f"Incident {incident_id} is in terminal state {current}. No further transitions allowed.",
@@ -209,15 +210,18 @@ def record_attempt(incident_id: str, attempt_type: str) -> dict:
 
     if count >= MAX_ATTEMPTS:
         incident["circuit_breaker_tripped"] = True
-        incident["current_state"] = "ESCALATED"
+        incident["current_state"] = "CIRCUIT_BROKEN"
+        incident["retry_count"] = count
         incident["updated_at"] = now
         incident["history"].append({
             "from_state": incident["current_state"],
-            "to_state": "ESCALATED",
+            "to_state": "CIRCUIT_BROKEN",
             "agent": "circuit_breaker",
             "timestamp": now,
-            "message": f"[CIRCUIT_BREAKER_TRIPPED] {attempt_type} failed {count} times (max={MAX_ATTEMPTS}). Escalating to @admin.",
+            "message": f"[CIRCUIT_BREAKER_TRIPPED] {attempt_type} failed {count} times (max={MAX_ATTEMPTS}). Halting automated retries.",
         })
+        state["current_state"] = "CIRCUIT_BROKEN"
+        state["retry_count"] = count
         _save_state(state)
         return {
             "status": "CIRCUIT_BREAKER_TRIPPED",
@@ -225,6 +229,7 @@ def record_attempt(incident_id: str, attempt_type: str) -> dict:
             "attempt_type": attempt_type,
             "attempt_count": count,
             "max_attempts": MAX_ATTEMPTS,
+            "current_state": "CIRCUIT_BROKEN",
             "message": f"[CIRCUIT_BREAKER_TRIPPED] Escalating to @admin after {count} failed {attempt_type} attempts.",
         }
 

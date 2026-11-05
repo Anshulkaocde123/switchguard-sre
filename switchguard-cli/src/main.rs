@@ -160,14 +160,22 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     }).to_string();
 
     // 7. Redact IPv4 addresses with HMAC suffix (e.g. [REDACTED_IPV4_8f3a1c])
-    let re_ipv4 = Regex::new(r"\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b").unwrap();
-    let ip_matches = re_ipv4.find_iter(&text).count();
-    total_redactions += ip_matches;
+    // Protect version strings prefixed with 'v' or 'version' (e.g. v1.4.2.1, v1.4.2.0) from being redacted as IPv4.
+    let re_ipv4 = Regex::new(
+        r"(?i)\b(?:version\s*|v[.\-_]?)\d+\.\d+\.\d+(?:\.\d+)?\b|(\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)"
+    ).unwrap();
+
+    let mut ip_matches = 0;
     text = re_ipv4.replace_all(&text, |caps: &regex::Captures| {
-        let matched = caps.get(0).map_or("", |m| m.as_str());
-        let token = compute_hmac_token(matched);
-        format!("[REDACTED_IPV4_{}]", token)
+        if let Some(m) = caps.get(1) {
+            ip_matches += 1;
+            let token = compute_hmac_token(m.as_str());
+            format!("[REDACTED_IPV4_{}]", token)
+        } else {
+            caps.get(0).unwrap().as_str().to_string()
+        }
     }).to_string();
+    total_redactions += ip_matches;
 
     // Classification
     let classification = if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
@@ -350,16 +358,6 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // Fallback: check HEAD~1 HEAD if working tree is clean
-    if diff_text.trim().is_empty() {
-        if let Ok(output) = Command::new("git")
-            .args(["-C", path_str, "diff", "HEAD~1", "HEAD"])
-            .output()
-        {
-            diff_text.push_str(&String::from_utf8_lossy(&output.stdout));
-        }
-    }
-
     let diff_hash = format!("{:x}", Sha256::digest(diff_text.as_bytes()));
 
     // Split diff by file blocks
@@ -403,19 +401,16 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let app_py_lines_deleted: usize = app_py_files.iter().map(|(_, _, d)| d.len()).sum();
     let app_py_has_changes = (app_py_lines_added + app_py_lines_deleted) > 0;
 
-    // Reject empty diffs if no lines are changed in .py application files (exit code 3)
-    if diff_text.trim().is_empty() || !app_py_has_changes {
+    // Reject truly empty diffs (0 bytes) before inspecting files (exit code 3)
+    if diff_text.trim().is_empty() {
         return VerifyOutput {
             verdict: "BLOCKED".to_string(),
             status: "EMPTY_PATCH_REJECTED".to_string(),
             target_path: target.display().to_string(),
             sha256: diff_hash,
-            forbidden_findings: vec![format!(
-                "AST-SEC-00: EMPTY_PATCH_REJECTED — No changes in .py application files (app_files={}, app_lines_added={}, app_lines_deleted={})",
-                app_py_files.len(),
-                app_py_lines_added,
-                app_py_lines_deleted
-            )],
+            forbidden_findings: vec![
+                "AST-SEC-00: EMPTY_PATCH_REJECTED — git diff returned 0 bytes".to_string(),
+            ],
             rules: vec![VerifyRule {
                 rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
                 status: "FAIL".to_string(),
@@ -425,6 +420,46 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     }
 
     let mut findings: Vec<String> = Vec::new();
+
+    // Find git root for target path to accurately compile modified .py files
+    let git_root = Command::new("git")
+        .args(["-C", path_str, "rev-parse", "--show-toplevel"])
+        .output()
+        .ok()
+        .and_then(|out| {
+            if out.status.success() {
+                String::from_utf8(out.stdout).ok().map(|s| PathBuf::from(s.trim()))
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| target.to_path_buf());
+
+    // AST-SEC-00: VALID_PYTHON_SYNTAX — Run python3 -m py_compile on modified .py files
+    for (filename, _, _) in &file_diffs {
+        if filename.ends_with(".py") {
+            let full_path = git_root.join(filename);
+            if full_path.exists() {
+                if let Ok(py_res) = Command::new("python3")
+                    .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
+                    .output()
+                {
+                    if !py_res.status.success() {
+                        let err_msg = String::from_utf8_lossy(&py_res.stderr);
+                        let first_err = err_msg
+                            .lines()
+                            .find(|l| l.contains("SyntaxError") || l.contains("Error"))
+                            .unwrap_or("Syntax error detected");
+                        findings.push(format!(
+                            "AST-SEC-00: VALID_PYTHON_SYNTAX — Syntax error in modified Python file '{}': {}",
+                            filename,
+                            first_err.trim()
+                        ));
+                    }
+                }
+            }
+        }
+    }
 
     // AST-SEC-09: MINIMAL_BLAST_RADIUS — Enforce minimal blast radius (max 25 added lines in production .py files)
     if app_py_lines_added > 25 {
@@ -507,9 +542,34 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
+    if findings.is_empty() && !app_py_has_changes {
+        return VerifyOutput {
+            verdict: "BLOCKED".to_string(),
+            status: "EMPTY_PATCH_REJECTED".to_string(),
+            target_path: target.display().to_string(),
+            sha256: diff_hash,
+            forbidden_findings: vec![format!(
+                "AST-SEC-00: EMPTY_PATCH_REJECTED — No changes in .py application files (app_files={}, app_lines_added={}, app_lines_deleted={})",
+                app_py_files.len(),
+                app_py_lines_added,
+                app_py_lines_deleted
+            )],
+            rules: vec![VerifyRule {
+                rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
+                status: "FAIL".to_string(),
+                description: "Rejects empty diffs or diffs without modifications to .py application files".to_string(),
+            }],
+        };
+    }
+
     let is_blocked = !findings.is_empty();
 
     let rules = vec![
+        VerifyRule {
+            rule: "AST-SEC-00: VALID_PYTHON_SYNTAX".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-00: VALID_PYTHON_SYNTAX")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Validates Python syntax via py_compile on modified .py files".to_string(),
+        },
         VerifyRule {
             rule: "AST-SEC-01: NO_EVAL_EXEC".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-01")) { "FAIL".to_string() } else { "PASS".to_string() },
