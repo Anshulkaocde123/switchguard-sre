@@ -87,7 +87,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     // Try git diff on target
     if let Ok(output) = Command::new("git")
-        .args(["-C", path_str, "diff"])
+        .args(["-C", path_str, "diff", "HEAD"])
         .output()
     {
         diff_text.push_str(&String::from_utf8_lossy(&output.stdout));
@@ -113,10 +113,43 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
+    // --- EDGE CASE A: Empty-patch rejection ---
+    if diff_text.trim().is_empty() {
+        return VerifyOutput {
+            verdict: "BLOCKED".to_string(),
+            status: "EMPTY_PATCH_REJECTED".to_string(),
+            target_path: target.display().to_string(),
+            sha256: format!("{:x}", Sha256::digest(diff_text.as_bytes())),
+            forbidden_findings: vec!["AST-SEC-00: EMPTY_PATCH — git diff returned 0 bytes; no changes to release.".to_string()],
+            rules: vec![VerifyRule {
+                rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
+                status: "FAIL".to_string(),
+                description: "Rejects empty diffs (0-byte patches)".to_string(),
+            }],
+        };
+    }
+
     let added_lines: Vec<&str> = diff_text
         .lines()
         .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
         .collect();
+
+    // Count actual file changes (lines starting with "diff --git")
+    let files_changed = diff_text.lines().filter(|l| l.starts_with("diff --git")).count();
+    if files_changed == 0 || added_lines.is_empty() {
+        return VerifyOutput {
+            verdict: "BLOCKED".to_string(),
+            status: "EMPTY_PATCH_REJECTED".to_string(),
+            target_path: target.display().to_string(),
+            sha256: format!("{:x}", Sha256::digest(diff_text.as_bytes())),
+            forbidden_findings: vec![format!("AST-SEC-00: EMPTY_PATCH — files_changed={}, lines_added={}", files_changed, added_lines.len())],
+            rules: vec![VerifyRule {
+                rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
+                status: "FAIL".to_string(),
+                description: "Rejects diffs with no substantive code additions".to_string(),
+            }],
+        };
+    }
 
     let mut findings = Vec::new();
 
@@ -130,12 +163,57 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         ("__import__", "Forbidden dynamic import: __import__"),
         ("sk_live_", "Forbidden secret: live secret key"),
         ("AIzaSy", "Forbidden secret: Google API key"),
+        ("os.popen", "Forbidden shell execution: os.popen"),
+        ("pty.spawn", "Forbidden shell execution: pty.spawn"),
+        ("shutil.rmtree", "Forbidden destructive operation: shutil.rmtree"),
+        ("getattr(__builtins__", "Forbidden builtins bypass: getattr(__builtins__)"),
+        ("importlib", "Forbidden dynamic import: importlib"),
+        ("compile(", "Forbidden code compilation: compile()"),
+        ("pickle.loads", "Forbidden deserialization: pickle.loads"),
     ];
 
     for line in &added_lines {
         for (token, desc) in &forbidden_primitives {
             if line.contains(token) {
                 findings.push(format!("{}: found '{}' in '{}'", desc, token, line.trim()));
+            }
+        }
+    }
+
+    // --- EDGE CASE B: Anti-reward-hacking (AST-SEC-06) ---
+    let diff_file_headers: Vec<&str> = diff_text.lines()
+        .filter(|l| l.starts_with("diff --git"))
+        .collect();
+
+    let modifies_source = diff_file_headers.iter()
+        .any(|h| !h.contains("test_") && h.contains(".py"));
+    let modifies_tests = diff_file_headers.iter()
+        .any(|h| h.contains("test_"));
+
+    // If tests are modified but no source file is, that's suspicious
+    if modifies_tests && !modifies_source {
+        findings.push("AST-SEC-06: NO_TEST_TAMPERING — test file(s) modified but no production source file changed. Suspected reward hacking.".to_string());
+    }
+
+    // Check for deleted assertion lines (lines removed from test files that contain assert)
+    let deleted_lines: Vec<&str> = diff_text.lines()
+        .filter(|l| l.starts_with('-') && !l.starts_with("---"))
+        .collect();
+
+    for line in &deleted_lines {
+        let trimmed = line.trim_start_matches('-').trim();
+        if trimmed.starts_with("assert") || trimmed.contains("assert ") {
+            // Check if this deletion is in a test file context
+            findings.push(format!("AST-SEC-06: NO_TEST_TAMPERING — deleted assertion detected: '{}'", trimmed));
+        }
+    }
+
+    // --- AST-SEC-08: Protected paths ---
+    let protected_paths = [".git/", ".env", ".sh"];
+    for header in &diff_file_headers {
+        for protected in &protected_paths {
+            if header.contains(protected) {
+                findings.push(format!("AST-SEC-08: PROTECTED_PATH — diff touches protected path '{}' in '{}'", protected, header));
             }
         }
     }
@@ -168,6 +246,21 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
             rule: "AST-SEC-05: NO_HARDCODED_SECRETS".to_string(),
             status: if findings.iter().any(|f| f.contains("sk_live_") || f.contains("AIzaSy")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Rejects hardcoded API keys and secrets".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-06: NO_TEST_TAMPERING".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-06")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks test deletion or assertion weakening (anti-reward-hacking)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-07: NO_EVASION_PRIMITIVES".to_string(),
+            status: if findings.iter().any(|f| f.contains("os.popen") || f.contains("pty.spawn") || f.contains("shutil.rmtree") || f.contains("getattr") || f.contains("importlib") || f.contains("compile(") || f.contains("pickle")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks evasion primitives (os.popen, pty.spawn, importlib, pickle, etc.)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-08: NO_PROTECTED_PATHS".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-08")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks diffs touching .git/, .env, or .sh files".to_string(),
         },
     ];
 
@@ -226,10 +319,14 @@ fn main() {
         "verify-diff" => {
             let path_str = if args.len() > 2 { &args[2] } else { "." };
             let result = run_verify_diff(path_str);
-            let is_blocked = result.verdict == "BLOCKED";
+            let exit_code = match result.status.as_str() {
+                "EMPTY_PATCH_REJECTED" => 3,
+                "BLOCKED" => 2,
+                _ => 0,
+            };
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
-            if is_blocked {
-                process::exit(2);
+            if exit_code != 0 {
+                process::exit(exit_code);
             }
         }
         other => {
