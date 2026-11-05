@@ -6,6 +6,7 @@ Automated verification of:
   Scenario 1: PII Sanitization & O(1) Alert-Storm Deduplication
   Scenario 2: Rogue Agent Remote Code Execution Injection Block (AST Guardrails)
   Scenario 3: Empty-Patch / Staged-Diff Trap Rejection (AST-SEC-00)
+  Scenario 4: Memory & State Machine Check (Episodic Runbook Memory & HITL Rollback)
 """
 
 import subprocess
@@ -135,6 +136,104 @@ def test_scenario_3() -> dict:
             "reason": f"Expected exit code 3, got exit {proc.returncode} (stdout: {proc.stdout[:200]})"
         }
 
+def test_scenario_4() -> dict:
+    """Scenario 4: Memory & State Machine Check (Episodic Runbook Memory & HITL Rollback)"""
+    with open(CART_SERVICE_PY, "r") as f:
+        original_code = f.read()
+
+    cut_release_script = os.path.join(RELEASE_OPS_DIR, "cut_release.py")
+    triage_script = os.path.join(TELEMETRY_DIR, "triage_helper.py")
+    state_file = os.path.join(TELEMETRY_DIR, "incident_state.json")
+    memory_file = os.path.join(TELEMETRY_DIR, "runbook_memory.json")
+
+    try:
+        # 1. Apply surgical fix to cart_service.py
+        patched_code = original_code.replace(
+            'total = subtotal - 100.0',
+            'total = max(0.0, subtotal - 100.0)'
+        )
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(patched_code)
+
+        # 2. Execute release INC-8041 v1.4.2
+        proc_rel = run_cmd([sys.executable, cut_release_script, "INC-8041", "v1.4.2"])
+        if proc_rel.returncode != 0:
+            return {
+                "status": "FAIL",
+                "reason": f"cut_release.py failed with exit {proc_rel.returncode}: {proc_rel.stderr or proc_rel.stdout}"
+            }
+
+        # 3. Verify incident_state.json updated to RELEASED
+        if not os.path.exists(state_file):
+            return {"status": "FAIL", "reason": "incident_state.json not created after release"}
+
+        with open(state_file, "r") as sf:
+            state_data = json.load(sf)
+
+        if state_data.get("current_state") != "RELEASED":
+            return {
+                "status": "FAIL",
+                "reason": f"Expected state RELEASED, got {state_data.get('current_state')}"
+            }
+
+        # 4. Verify runbook_memory.json recorded the resolution pattern
+        if not os.path.exists(memory_file):
+            return {"status": "FAIL", "reason": "runbook_memory.json not created after release"}
+
+        with open(memory_file, "r") as mf:
+            mem_data = json.load(mf)
+            resolutions = mem_data if isinstance(mem_data, list) else mem_data.get("resolutions", [])
+            match = next((r for r in resolutions if r.get("incident_id") == "INC-8041"), None)
+            if not match:
+                return {"status": "FAIL", "reason": "No entry for INC-8041 found in runbook_memory.json"}
+
+        # 5. Re-run triage_helper.py on a similar FLAT100 log to verify memory retrieval
+        test_log = "[CRITICAL] Checkout total calculation error with FLAT100 discount coupon in cart_service.py:5 total -$50.00"
+        proc_triage = run_cmd([sys.executable, triage_script, test_log, "INC-8044"])
+        if proc_triage.returncode != 0:
+            return {"status": "FAIL", "reason": f"triage_helper.py failed: {proc_triage.stderr}"}
+
+        triage_out = json.loads(proc_triage.stdout)
+        hist_match = triage_out.get("historical_runbook_match")
+        if not hist_match:
+            return {
+                "status": "FAIL",
+                "reason": f"historical_runbook_match was null/absent in triage output for FLAT100 log"
+            }
+
+        if hist_match.get("prior_incident_id") != "INC-8041" or "max(0.0" not in hist_match.get("fix_pattern", ""):
+            return {
+                "status": "FAIL",
+                "reason": f"Unexpected historical_runbook_match content: {hist_match}"
+            }
+
+        # 6. Test HITL Rollback capability
+        proc_rb = run_cmd([sys.executable, cut_release_script, "INC-8041", "v1.4.2", "--rollback"])
+        if proc_rb.returncode != 0:
+            return {"status": "FAIL", "reason": f"cut_release.py --rollback failed: {proc_rb.stderr}"}
+
+        with open(state_file, "r") as sf:
+            state_data_rb = json.load(sf)
+        if state_data_rb.get("current_state") != "ROLLED_BACK":
+            return {
+                "status": "FAIL",
+                "reason": f"Expected state ROLLED_BACK after --rollback, got {state_data_rb.get('current_state')}"
+            }
+
+        # Verify audit log hash chain remains valid after rollback
+        proc_aud = run_cmd([CLI_BIN, "verify-audit"])
+        if proc_aud.returncode != 0:
+            return {"status": "FAIL", "reason": f"switchguard-cli verify-audit failed after rollback: {proc_aud.stdout}"}
+
+        return {
+            "status": "PASS",
+            "details": f"Historical runbook memory retrieved (prior={hist_match.get('prior_incident_id')}, pattern='{hist_match.get('fix_pattern')}') & HITL rollback verified"
+        }
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(original_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "cart_service.py"])
+
 def main():
     print("=" * 80)
     print(" SwitchGuard SRE — Batch 5.5 Security & Chaos Verification Test Suite")
@@ -148,7 +247,10 @@ def main():
     print(f"[*] Scenario 2 (Rogue Agent Injection Block): {res2['status']}")
 
     res3 = test_scenario_3()
-    print(f"[*] Scenario 3 (Empty Patch Rejection): {res3['status']}\n")
+    print(f"[*] Scenario 3 (Empty Patch Rejection): {res3['status']}")
+
+    res4 = test_scenario_4()
+    print(f"[*] Scenario 4 (Memory & State Machine Check): {res4['status']}\n")
 
     # Format Summary Table
     print("=" * 80)
@@ -159,6 +261,7 @@ def main():
         ("1", "PII & Storm Dedup", "PII + Dedup Index", res1["status"], res1.get("details", res1.get("reason", ""))),
         ("2", "Rogue Agent Injection", "AST-SEC-02 (os.system)", res2["status"], res2.get("details", res2.get("reason", ""))),
         ("3", "Empty Patch Rejection", "AST-SEC-00 (0-byte diff)", res3["status"], res3.get("details", res3.get("reason", ""))),
+        ("4", "Memory & State Machine", "Episodic Memory & HITL", res4["status"], res4.get("details", res4.get("reason", ""))),
     ]
 
     all_passed = True

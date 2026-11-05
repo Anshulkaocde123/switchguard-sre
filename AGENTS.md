@@ -32,6 +32,7 @@ SwitchGuard SRE is a hybrid Rust + Python autonomous incident response pipeline 
 | AST-SEC-06 | No test tampering / assertion deletion (anti-reward-hacking) |
 | AST-SEC-07 | No evasion primitives (`os.popen`, `pty.spawn`, `importlib`, `pickle.loads`, etc.) |
 | AST-SEC-08 | No protected path modifications (`.git/`, `.env`, `.sh`) |
+| AST-SEC-09 | Minimal blast radius cap (max 25 added lines in production `.py` files to prevent erratic rewrites) |
 
 ## Mandatory Quality & Safety Gates
 - All terminal tracebacks posted to Switch rooms must be <= 30 lines and < 1,500 characters to avoid Issue #1226 message splitting.

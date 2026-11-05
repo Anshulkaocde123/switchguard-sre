@@ -28,23 +28,62 @@ flowchart TD
 
 ---
 
-## 4 Differentiating Architectural Pillars
+## The 7 Pillars of Safe Autonomy
 
-1. **Physical Directory & Permission Isolation**:
-   - `sre-sentinel` (`@triage`) runs in `workspace/telemetry` with `addressing: anyone`. Zero filesystem access to application source code.
-   - `sre-repro` (`@repro`) runs in `workspace/sandbox-app` with `addressing: owner-agents`. Only authorized agents or the room owner can invoke test execution.
-   - `sre-clerk` (`@release`) runs in `workspace/release-ops` with `addressing: owner-agents`. Isolated from code until human sign-off.
+> *"An agent that completes 25 percent of tasks with high explainability and zero surprises will beat one that is 95 percent capable but erratic. The real game is not building smarter agents for broken processes. It is building smarter processes."*
 
-2. **Fail-Closed Evidence Boundary**:
-   - Room instructions mandate that `@repro` must write a failing `pytest` reproduction test **before** touching application source code.
-   - If a test cannot reproduce the fault, `@repro` halts immediately with `STATUS: REPRODUCTION_INCONCLUSIVE` rather than hallucinating an unverified patch.
+Most teams try to build autonomous incident systems by giving a single LLM a massive system prompt and hoping it behaves. **SwitchGuard SRE** wins by engineering a deterministic, zero-surprise process around agents inside Switch Console, mapped directly to the **7 Pillars of Autonomous Systems**:
 
-3. **Dual-Engine Security & Precision Gate**:
-   - Every candidate patch must pass our compiled Rust binary `switchguard-cli verify-diff` (detecting `eval`, `exec`, `os.system`, `subprocess`, `shell=True`, `__import__`, hardcoded keys) before release approval.
+### Summary Mapping for Hackathon Judges
 
-4. **Untagged Mid-Turn Steering (`!follow-ups on`) + Exclusive Human Gate**:
-   - With `follow_the_conversation: true`, human engineers can reply in active threads without `@`-mentions to steer code changes.
-   - Hotfix branches and patches remain locked until the human Incident Commander explicitly posts `Approved`.
+| # | Autonomous Pillar | SwitchGuard SRE Implementation | Concrete Reliability Guarantee |
+| :-: | :--- | :--- | :--- |
+| **1** | **Clear Objectives & Quantitative KPIs** | Rust `AST-SEC-09` Blast-Radius Cap + Binary SLA Contracts | Max 25 lines added; 0% PII leakage; <5ms scrub latency |
+| **2** | **Task Planning & Decomposition** | 3-Agent Isolated DAG + 4-Step TDD Loop | Test failure proven before code edit; surgical patches |
+| **3** | **Observability & Drift Detection** | `incident_state.json` FSM + Executive Dashboard | Real-time state machine tracking & scrub latency metrics |
+| **4** | **Episodic Runbook Memory** | Zero-RAM `runbook_memory.json` Pattern Store | Past verified patches guide future triage without vector DB bloat |
+| **5** | **Guardrails & Least Privilege** | 3 Concentric Rings (Addressing + Symlinks + Native CLI) | Triage cannot touch code; repro cannot cut releases |
+| **6** | **HITL Governance** | Autonomous Interns vs Gated Clerk + `--rollback` | Auto-mode in sandbox; strict manual release gate + 1-click rollback |
+| **7** | **Error Fallbacks & Self-Healing** | Auto `git checkout` Remediation + Multi-Path Fallback | Max 2 attempts before circuit breaker; self-healing reset |
+
+### Architectural Deep-Dive
+
+1. **Clear Objectives & Quantitative KPIs (Binary SLA Contracts)**
+   - **`sre-sentinel` KPI:** `PII_LEAK_COUNT == 0` and `SCRUB_LATENCY < 5ms`. Raw crash dumps containing Bearer tokens, email addresses, credit cards, and AWS access keys are scrubbed and HMAC-tokenized before touching LLM context.
+   - **`sre-repro` KPI (Diff Blast-Radius Cap):** Must achieve `PYTEST_EXIT_CODE == 0`, `AST_VIOLATIONS == 0`, and rule `AST-SEC-09: CHANGED_LINES <= 25`. While erratic agents frequently rewrite entire files to fix simple bugs, our Rust verifier enforces minimal, surgical, explainable edits.
+   - **`sre-clerk` KPI:** `UNAPPROVED_RELEASES == 0` and `HASH_CHAIN_VALID == TRUE`. Releases are rejected unless signed into the immutable SHA-256 hash chain from genesis ($0000\dots0000$).
+
+2. **Task Planning & Decomposition (Two-Tier Planner-Executor Architecture)**
+   - **Macro-Decomposition (Room Topology):** The incident lifecycle is partitioned across three isolated agent personas (`sre-sentinel` $\rightarrow$ `sre-repro` $\rightarrow$ `sre-clerk`).
+   - **Micro-Decomposition (4-Step TDD State Gate):**
+     1. *Plan & Reproduce:* Write a failing reproduction test in `test_cart.py` and run `pytest` to prove the failure (`AssertionError: -60.0 >= 0.0`) without touching production code.
+     2. *Execute Patch:* Apply the minimal fix in `cart_service.py` (`max(0.0, subtotal - 100.0)`).
+     3. *Verify Unit Tests:* Confirm 100% test pass rate (`1 passed in 0.01s`).
+     4. *Static Security Audit:* Run compiled native `switchguard-cli verify-diff .` to validate AST rules.
+
+3. **Robust Observability, State-Machine Visibility & Drift Detection**
+   - **Explicit State Machine (`workspace/telemetry/incident_state.json`):** Tracks `incident_id`, `current_state` (`INGESTED → SANITIZED → REPRODUCING → PATCH_VERIFIED → RELEASED | ROLLED_BACK`), `updated_at`, `retry_count`, and `scrub_latency_ms`.
+   - **Executive Dashboard (`docs/index.html`):** Renders real-time cryptographic audit chains, active AST rules, and incident ledger status.
+
+4. **Memory Systems (Short-Term Context + Zero-RAM Long-Term Episodic Memory)**
+   - **Short-Term Memory:** Active Switch Console conversation thread in `#sre-war-room`.
+   - **Episodic Runbook Memory (`workspace/telemetry/runbook_memory.json`):** Avoids heavy vector databases (Pinecone, Weaviate) that consume gigabytes of RAM. Stores verified tuples of `error_classification`, `target_file`, `fix_pattern`, and `patch_sha256`.
+   - **Recurring Incident Speedup:** When `triage_helper.py` ingests a recurring fault, it queries episodic memory and returns `historical_runbook_match`, allowing `@sre-repro` to solve known bugs on the first attempt!
+
+5. **Guardrails & Principle of Least Privilege**
+   - **Ring 1 (Communication Scope):** Only `sre-sentinel` accepts messages from `Anyone`; `sre-repro` and `sre-clerk` only accept triggers from room owners and peer agents.
+   - **Ring 2 (Filesystem Scope):** Sandboxed working directories (`telemetry/`, `sandbox-app/`, `release-ops/`). Sentinel cannot edit application code; repro cannot sign release audit logs.
+   - **Ring 3 (Out-of-Band Rust Binary):** `switchguard-cli` is compiled native Rust in `~/.local/bin` with 10 strict AST rules (AST-SEC-00 through 09) that cannot be bypassed or modified by LLM agents.
+
+6. **Human-in-the-Loop (HITL) Governance ("Interns in Sandboxes, Humans at the Gate")**
+   - **Autonomous Intern Zone:** Triage log-scrubbing and local reproduction sandboxing run in Auto Mode because their operations are strictly non-destructive.
+   - **Strict Executive Gate:** Hotfix releases require explicit `@sre-clerk Approved` from the Incident Commander.
+   - **Human Override & 1-Click Rollback:** Operators can instantly execute `python3 cut_release.py INC-8041 v1.4.2 --rollback` to revert `cart_service.py` to `HEAD`, append a verified `ROLLED_BACK` entry to `RELEASE_AUDIT.log`, and transition state to `ROLLED_BACK`.
+
+7. **Error Handling, Fallbacks & Self-Healing Remediation**
+   - **Multi-Path Binary Fallback:** Resolves `switchguard-cli` across `$PATH`, `~/.local/bin`, and `~/.opencode/bin`.
+   - **Automated Sandbox Remediation:** If a generated patch violates AST rules, the wrapper reverts changes via `git checkout -- cart_service.py`.
+   - **Circuit Breaker:** Increments retry counter up to `MAX_ATTEMPTS = 2` before cleanly escalating to `@admin`, preventing infinite loops or hallucination cascades.
 
 ---
 
@@ -58,21 +97,24 @@ switchguard-sre/
 ├── switchguard-sre.template.yaml      # 1-click Switch Room Template
 ├── plan.md                            # Complete engineering manual & blueprint
 ├── scripts/
-│   └── setup_demo.sh                  # 2-second deterministic clean-room reset
-├── switchguard-cli/                   # High-speed compiled Rust security CLI
+│   ├── setup_demo.sh                  # 2-second deterministic clean-room reset
+│   └── security_chaos_test.py         # 4-scenario automated security test suite
+├── switchguard-cli/                   # High-speed compiled Rust security CLI (v0.3.0)
 │   ├── Cargo.toml
-│   └── src/main.rs                    # scrub (<0.4ms) & verify-diff (AST checks)
+│   └── src/main.rs                    # scrub (<0.4ms) & verify-diff (AST-SEC-00..09)
 └── workspace/
     ├── telemetry/                     # sre-sentinel (@triage)
-    │   ├── triage_helper.py           # Rust scrubbing + incident classifier
-    │   └── incidents_ledger.md        # Active incident ledger
+    │   ├── triage_helper.py           # Rust scrubbing + episodic memory lookup
+    │   ├── incidents_ledger.md        # Concurrent POSIX-locked incidents ledger
+    │   ├── incident_state.json        # FSM state machine tracking
+    │   └── runbook_memory.json        # Zero-RAM episodic runbook memory
     ├── sandbox-app/                   # sre-repro (@repro)
     │   ├── cart_service.py            # Microservice with discount logic
     │   └── test_cart.py               # Baseline & reproduction test suite
     └── release-ops/                   # sre-clerk (@release)
-        ├── cut_release.py             # AST-gated patch packager & branch cutter
-        ├── RELEASE_AUDIT.log          # Immutable audit trail
-        └── releases/                  # Exported .patch artifacts
+        ├── cut_release.py             # AST-gated packager, hash chaining & --rollback
+        ├── RELEASE_AUDIT.log          # Immutable SHA-256 hash-chained audit trail
+        └── releases/                  # Exported .patch & TEE attestation manifests
 ```
 
 ---

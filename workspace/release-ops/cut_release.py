@@ -65,6 +65,18 @@ AST_RULES = [
         "name": "Protected Path & Evasion Isolation",
         "desc": "Blocks .git/, .env, *.sh modifications, os.popen, pty.spawn, and socket primitives.",
         "status": "PASS"
+    },
+    {
+        "id": "AST-SEC-08",
+        "name": "Dynamic Evasion Isolation",
+        "desc": "Blocks getattr(), builtins, os.popen, pty.spawn, and socket primitives.",
+        "status": "PASS"
+    },
+    {
+        "id": "AST-SEC-09",
+        "name": "Minimal Blast Radius",
+        "desc": "Limits hotfix additions in production .py files to at most 25 lines to prevent erratic rewrites.",
+        "status": "PASS"
     }
 ]
 
@@ -146,7 +158,7 @@ def parse_release_audit_log() -> list[dict]:
                 parts = [p.strip() for p in rest.split("|")]
                 
                 action_part = parts[0]
-                version_match = re.search(r"HOTFIX RELEASED:\s*([^\s]+)\s+for\s+([^\s]+)", action_part)
+                version_match = re.search(r"HOTFIX (?:RELEASED|ROLLED_BACK):\s*([^\s]+)\s+for\s+([^\s]+)", action_part)
                 version = version_match.group(1) if version_match else "unknown"
                 incident_id = version_match.group(2) if version_match else "unknown"
 
@@ -256,16 +268,19 @@ def generate_dashboard() -> str:
     release_rows_html = ""
     if releases:
         for rel in releases:
+            is_rollback = "ROLLED_BACK" in rel.get("action", "") or rel.get("ast_audit") == "ROLLED_BACK"
+            status_badge = '<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span>' if is_rollback else '<span class="badge badge-emerald">VERIFIED</span>'
+            patch_display = rel.get('patch') or ('REVERTED_TO_HEAD' if is_rollback else 'hotfix.patch')
             release_rows_html += f"""
             <tr>
               <td><code>{html.escape(rel['timestamp'])}</code></td>
               <td><span class="badge badge-green">{html.escape(rel['version'])}</span></td>
               <td><span class="badge badge-blue">{html.escape(rel['incident_id'])}</span></td>
-              <td><code>{html.escape(rel['patch'])}</code></td>
+              <td><code>{html.escape(patch_display)}</code></td>
               <td><code class="hash-code" title="{html.escape(rel['sha256'])}">{html.escape(rel['sha256'][:16])}...</code></td>
               <td><code class="hash-code" title="{html.escape(rel['prev_hash'])}">{html.escape(rel['prev_hash'][:12])}...</code></td>
               <td><code class="hash-code hash-gold" title="{html.escape(rel['chain_hash'])}">{html.escape(rel['chain_hash'][:16])}...</code></td>
-              <td><span class="badge badge-emerald">VERIFIED</span></td>
+              <td>{status_badge}</td>
             </tr>
             """
     else:
@@ -1153,13 +1168,104 @@ def execute_release(incident_id: str, version: str):
         "binary_sha256": binary_sha256,
         "patch_sha256": patch_sha256,
         "chain_hash": chain_hash,
-        "ast_rules_checked": 8,
+        "ast_rules_checked": len(AST_RULES),
         "human_gate_verified": True
     }
     with open(attestation_path, "w") as af:
         json.dump(attestation_payload, af, indent=2)
 
-    # 7. Generate Executive Dashboard docs/index.html
+    # 7. Update incident_state.json to RELEASED
+    state_file = os.path.join(TELEMETRY_DIR, "incident_state.json")
+    state_data = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r") as sf:
+                state_data = json.load(sf)
+        except Exception:
+            state_data = {}
+
+    state_data["incident_id"] = incident_id
+    state_data["current_state"] = "RELEASED"
+    state_data["updated_at"] = timestamp
+    if "incidents" not in state_data or not isinstance(state_data["incidents"], dict):
+        state_data["incidents"] = {}
+
+    if incident_id not in state_data["incidents"]:
+        state_data["incidents"][incident_id] = {
+            "created_at": timestamp,
+            "attempt_counts": {"reproduce": 0, "verify": 0, "pytest": 0},
+            "history": [],
+            "circuit_breaker_tripped": False,
+        }
+    state_data["incidents"][incident_id]["current_state"] = "RELEASED"
+    state_data["incidents"][incident_id]["updated_at"] = timestamp
+    if "history" not in state_data["incidents"][incident_id]:
+        state_data["incidents"][incident_id]["history"] = []
+    state_data["incidents"][incident_id]["history"].append({
+        "from_state": "PATCH_VERIFIED",
+        "to_state": "RELEASED",
+        "agent": "sre-clerk",
+        "timestamp": timestamp,
+        "message": f"Hotfix release {version} successfully deployed and audited"
+    })
+
+    with open(state_file + ".tmp", "w") as sf:
+        json.dump(state_data, sf, indent=2)
+    os.replace(state_file + ".tmp", state_file)
+
+    # 8. Append verified resolution pattern to runbook_memory.json
+    error_class = "NEGATIVE_TOTAL_CALCULATION"
+    summary = "Enforce non-negative order total by clamping discount subtotals with max(0.0, ...)"
+    incidents = parse_incidents_ledger()
+    for inc in incidents:
+        if inc.get("incident_id") == incident_id:
+            if inc.get("error_class") and inc.get("error_class") != "UNKNOWN":
+                error_class = inc.get("error_class")
+            if inc.get("summary"):
+                summary = inc.get("summary")
+            break
+
+    target_file = "cart_service.py"
+    fix_pattern = "max(0.0, subtotal - 100.0)"
+    for line in diff_content.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            stripped = line.lstrip("+").strip()
+            if stripped and not stripped.startswith("#"):
+                fix_pattern = stripped
+                break
+
+    memory_file = os.path.join(TELEMETRY_DIR, "runbook_memory.json")
+    mem_record = {
+        "error_classification": error_class,
+        "incident_id": incident_id,
+        "version": version,
+        "target_file": target_file,
+        "fix_pattern": fix_pattern,
+        "patch_sha256": patch_sha256,
+        "summary": summary,
+        "timestamp": timestamp
+    }
+
+    mem_data = {"version": "1.0", "resolutions": []}
+    if os.path.exists(memory_file):
+        try:
+            with open(memory_file, "r") as mf:
+                loaded = json.load(mf)
+                if isinstance(loaded, dict) and "resolutions" in loaded:
+                    mem_data = loaded
+                elif isinstance(loaded, list):
+                    mem_data = {"version": "1.0", "resolutions": loaded}
+        except Exception:
+            pass
+
+    mem_data["resolutions"] = [r for r in mem_data.get("resolutions", []) if not (r.get("incident_id") == incident_id and r.get("version") == version)]
+    mem_data["resolutions"].append(mem_record)
+
+    with open(memory_file + ".tmp", "w") as mf:
+        json.dump(mem_data, mf, indent=2)
+    os.replace(memory_file + ".tmp", memory_file)
+
+    # 9. Generate Executive Dashboard docs/index.html
     dash_file = generate_dashboard()
 
     print(json.dumps({
@@ -1171,10 +1277,113 @@ def execute_release(incident_id: str, version: str):
         "patch_sha256": patch_sha256,
         "attestation_manifest": f"releases/{attestation_filename}",
         "dashboard": "docs/index.html",
+        "runbook_memory": "workspace/telemetry/runbook_memory.json",
+        "incident_state": "RELEASED",
         "files_changed": files_changed,
         "lines_added": lines_added,
         "prev_chain_hash": prev_chain_hash,
         "chain_hash": chain_hash
+    }, indent=2))
+
+def execute_rollback(incident_id: str, version: str):
+    """
+    Rollback operation:
+    1. Reverts sandbox-app/cart_service.py to HEAD
+    2. Appends a ROLLED_BACK entry to RELEASE_AUDIT.log (with hash-chaining)
+    3. Sets incident_state.json to ROLLED_BACK
+    """
+    # 1. Revert sandbox-app/cart_service.py to HEAD
+    subprocess.run(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"], check=False)
+
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    rollback_sha256 = hashlib.sha256(f"ROLLBACK:{incident_id}:{version}:{timestamp}".encode("utf-8")).hexdigest()
+
+    # 2. Cryptographic Hash Chaining:
+    genesis_hash = "0" * 64
+    prev_chain_hash = genesis_hash
+
+    if os.path.exists(AUDIT_LOG):
+        with open(AUDIT_LOG, "r") as f:
+            for line in f:
+                line_str = line.strip()
+                if "CHAIN_HASH=" in line_str:
+                    parts = line_str.split("CHAIN_HASH=")
+                    if len(parts) > 1:
+                        cand = parts[1].strip().split()[0].split("|")[0].strip()
+                        if len(cand) == 64:
+                            prev_chain_hash = cand
+
+    chain_payload = f"{prev_chain_hash}{timestamp}{rollback_sha256}"
+    chain_hash = hashlib.sha256(chain_payload.encode("utf-8")).hexdigest()
+
+    log_entry = (
+        f"[{timestamp}] HOTFIX ROLLED_BACK: {version} for {incident_id} | "
+        f"STATUS=ROLLED_BACK | ACTION=REVERTED_TO_HEAD | SHA256={rollback_sha256} | "
+        f"PREV_HASH={prev_chain_hash} | CHAIN_HASH={chain_hash}\n"
+    )
+
+    with open(AUDIT_LOG, "a+") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.seek(0, os.SEEK_END)
+            f.write(log_entry)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+    # 3. Update incident_state.json to ROLLED_BACK
+    state_file = os.path.join(TELEMETRY_DIR, "incident_state.json")
+    state_data = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r") as sf:
+                state_data = json.load(sf)
+        except Exception:
+            state_data = {}
+
+    state_data["incident_id"] = incident_id
+    state_data["current_state"] = "ROLLED_BACK"
+    state_data["updated_at"] = timestamp
+    if "incidents" not in state_data or not isinstance(state_data["incidents"], dict):
+        state_data["incidents"] = {}
+
+    if incident_id not in state_data["incidents"]:
+        state_data["incidents"][incident_id] = {
+            "created_at": timestamp,
+            "attempt_counts": {"reproduce": 0, "verify": 0, "pytest": 0},
+            "history": [],
+            "circuit_breaker_tripped": False,
+        }
+    state_data["incidents"][incident_id]["current_state"] = "ROLLED_BACK"
+    state_data["incidents"][incident_id]["updated_at"] = timestamp
+    if "history" not in state_data["incidents"][incident_id]:
+        state_data["incidents"][incident_id]["history"] = []
+    state_data["incidents"][incident_id]["history"].append({
+        "from_state": "RELEASED",
+        "to_state": "ROLLED_BACK",
+        "agent": "commander",
+        "timestamp": timestamp,
+        "message": f"Human-in-the-loop rollback executed for {version}: cart_service.py reverted to HEAD"
+    })
+
+    with open(state_file + ".tmp", "w") as sf:
+        json.dump(state_data, sf, indent=2)
+    os.replace(state_file + ".tmp", state_file)
+
+    # 4. Refresh Dashboard
+    generate_dashboard()
+
+    print(json.dumps({
+        "release_status": "ROLLED_BACK",
+        "incident_id": incident_id,
+        "version": version,
+        "action": "REVERTED_TO_HEAD",
+        "cart_service": "reverted to HEAD",
+        "audit_log": "RELEASE_AUDIT.log",
+        "prev_chain_hash": prev_chain_hash,
+        "chain_hash": chain_hash,
+        "incident_state": "ROLLED_BACK"
     }, indent=2))
 
 if __name__ == "__main__":
@@ -1183,6 +1392,12 @@ if __name__ == "__main__":
         print(f"Executive dashboard generated at: {df}")
         sys.exit(0)
 
-    inc_id = sys.argv[1] if len(sys.argv) > 1 else "INC-8041"
-    ver = sys.argv[2] if len(sys.argv) > 2 else "v1.4.2"
-    execute_release(inc_id, ver)
+    is_rollback = "--rollback" in sys.argv
+    pos_args = [a for a in sys.argv[1:] if a != "--rollback"]
+    inc_id = pos_args[0] if len(pos_args) > 0 else "INC-8041"
+    ver = pos_args[1] if len(pos_args) > 1 else "v1.4.2"
+
+    if is_rollback:
+        execute_rollback(inc_id, ver)
+    else:
+        execute_release(inc_id, ver)

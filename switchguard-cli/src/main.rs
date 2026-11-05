@@ -426,6 +426,14 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     let mut findings: Vec<String> = Vec::new();
 
+    // AST-SEC-09: MINIMAL_BLAST_RADIUS — Enforce minimal blast radius (max 25 added lines in production .py files)
+    if app_py_lines_added > 25 {
+        findings.push(format!(
+            "AST-SEC-09: MINIMAL_BLAST_RADIUS — Total added lines in production .py files ({}) exceeds hotfix blast-radius limit of 25 lines",
+            app_py_lines_added
+        ));
+    }
+
     // AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — Block modifications to .git/, .env, or *.sh files
     for (filename, _, _) in &file_diffs {
         if filename.contains(".git/") || filename.contains("/.git") || filename == ".git" {
@@ -541,6 +549,11 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
             rule: "AST-SEC-08: NO_OBFUSCATED_EXEC".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-08")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Block getattr(, builtins, os.popen, pty.spawn, shutil.rmtree, and socket.".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-09: MINIMAL_BLAST_RADIUS".to_string(),
+            status: if app_py_lines_added > 25 { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Enforces minimal blast radius: rejects hotfixes adding more than 25 lines to production .py files".to_string(),
         },
     ];
 

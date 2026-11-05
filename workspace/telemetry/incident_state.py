@@ -18,19 +18,21 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "incident_
 
 # Valid state transitions (one-way DAG)
 VALID_TRANSITIONS = {
-    "TRIAGED":        ["REPRODUCING", "ESCALATED"],
-    "REPRODUCING":    ["PATCH_VERIFIED", "ESCALATED"],
-    "PATCH_VERIFIED": ["RELEASED", "ESCALATED"],
-    "RELEASED":       [],  # Terminal state
+    "TRIAGED":        ["REPRODUCING", "ESCALATED", "ROLLED_BACK"],
+    "SANITIZED":      ["REPRODUCING", "ESCALATED", "ROLLED_BACK"],
+    "REPRODUCING":    ["PATCH_VERIFIED", "ESCALATED", "ROLLED_BACK"],
+    "PATCH_VERIFIED": ["RELEASED", "ESCALATED", "ROLLED_BACK"],
+    "RELEASED":       ["ROLLED_BACK"],  # Can rollback to HEAD
+    "ROLLED_BACK":    [],  # Terminal state
     "ESCALATED":      [],  # Terminal state
 }
 
 # Which agent is authorized to make which transitions
 AGENT_PERMISSIONS = {
-    "sre-sentinel": [("TRIAGED", "REPRODUCING")],
+    "sre-sentinel": [("TRIAGED", "REPRODUCING"), ("SANITIZED", "REPRODUCING")],
     "sre-repro":    [("REPRODUCING", "PATCH_VERIFIED"), ("REPRODUCING", "ESCALATED")],
-    "commander":    [("PATCH_VERIFIED", "RELEASED")],
-    "sre-clerk":    [("PATCH_VERIFIED", "RELEASED")],
+    "commander":    [("PATCH_VERIFIED", "RELEASED"), ("RELEASED", "ROLLED_BACK"), ("PATCH_VERIFIED", "ROLLED_BACK"), ("REPRODUCING", "ROLLED_BACK")],
+    "sre-clerk":    [("PATCH_VERIFIED", "RELEASED"), ("RELEASED", "ROLLED_BACK")],
 }
 
 MAX_ATTEMPTS = 2  # Circuit breaker threshold
@@ -39,13 +41,29 @@ MAX_ATTEMPTS = 2  # Circuit breaker threshold
 def _load_state() -> dict:
     """Load incident state from persistent JSON file."""
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(STATE_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    if "incidents" not in data:
+                        data["incidents"] = {}
+                    return data
+        except Exception:
+            pass
     return {"incidents": {}}
 
 
 def _save_state(state: dict):
-    """Persist incident state atomically."""
+    """Persist incident state atomically, maintaining top-level and per-incident keys."""
+    # Ensure top-level tracking fields for the latest incident
+    if "incidents" in state and isinstance(state["incidents"], dict) and state["incidents"]:
+        latest_id = list(state["incidents"].keys())[-1]
+        latest_entry = state["incidents"][latest_id]
+        state.setdefault("incident_id", latest_id)
+        state["current_state"] = latest_entry.get("current_state", state.get("current_state", "SANITIZED"))
+        state["updated_at"] = latest_entry.get("updated_at", state.get("updated_at", ""))
+        state.setdefault("retry_count", 0)
+
     tmp_path = STATE_FILE + ".tmp"
     with open(tmp_path, "w") as f:
         json.dump(state, f, indent=2)

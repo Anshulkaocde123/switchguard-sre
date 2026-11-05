@@ -1,0 +1,86 @@
+{
+  "incident_id": "INC-8041",
+  "current_state": "ROLLED_BACK",
+  "updated_at": "2026-11-05T17:18:54.470575+00:00",
+  "retry_count": 0,
+  "scrub_latency_ms": 4.09,
+  "incidents": {
+    "INC-TEST-01": {
+      "current_state": "SANITIZED",
+      "created_at": "2026-11-05T17:14:34.205434+00:00",
+      "attempt_counts": {
+        "reproduce": 0,
+        "verify": 0,
+        "pytest": 0
+      },
+      "history": [
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-05T17:14:34.205434+00:00",
+          "message": "Log sanitized via switchguard-cli in 4.09ms"
+        }
+      ],
+      "circuit_breaker_tripped": false,
+      "updated_at": "2026-11-05T17:14:34.205434+00:00",
+      "retry_count": 0,
+      "scrub_latency_ms": 4.09
+    },
+    "INC-8041": {
+      "created_at": "2026-11-05T17:16:09.665033+00:00",
+      "attempt_counts": {
+        "reproduce": 0,
+        "verify": 0,
+        "pytest": 0
+      },
+      "history": [
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-05T17:16:09.665033+00:00",
+          "message": "Hotfix release v1.4.2 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-05T17:16:09.770486+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.2: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-05T17:16:49.855309+00:00",
+          "message": "Hotfix release v1.4.2 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-05T17:16:49.955526+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.2: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-05T17:18:54.381336+00:00",
+          "message": "Hotfix release v1.4.2 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-05T17:18:54.470575+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.2: cart_service.py reverted to HEAD"
+        }
+      ],
+      "circuit_breaker_tripped": false,
+      "current_state": "ROLLED_BACK",
+      "updated_at": "2026-11-05T17:18:54.470575+00:00"
+    }
+  }
+}

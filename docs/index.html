@@ -519,7 +519,7 @@
           <div class="pulse-dot"></div>
           <span>TEE ENCLAVE ATTESTED & HARDENED</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono);">2026-11-05 17:05:07 UTC</div>
+        <div style="font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono);">2026-11-05 17:19:28 UTC</div>
       </div>
     </header>
 
@@ -601,6 +601,42 @@
               <td><span class="badge badge-teal">2 PII Redactions</span></td>
               <td><code class="hash-code">a7a31148dc23...</code></td>
               <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL] FLAT100 -0.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05 17:14:34 UTC</code></td>
+              <td><span class="badge badge-blue">INC-TEST-01</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">182b6411155c...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_973dfe] FLAT100 -0.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05 17:16:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-8042 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">1 PII Redactions</span></td>
+              <td><code class="hash-code">8a1f283140fa...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Bearer [REDACTED_AUTH_TOKEN] FLAT100 -0.00 cart_service.py line 5</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05 17:16:49 UTC</code></td>
+              <td><span class="badge badge-blue">INC-8044 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">17848be7477d...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] [CRITICAL] Checkout total calculation error with FLAT100 discount coupon in cart_service.py:5 total -$50.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05 17:18:54 UTC</code></td>
+              <td><span class="badge badge-blue">INC-8044 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">17848be7477d...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] [CRITICAL] Checkout total calculation error with FLAT100 discount coupon in cart_service.py:5 total -$50.00</td>
             </tr>
             
         </tbody>
@@ -693,6 +729,24 @@
           <div class="rule-desc">Blocks .git/, .env, *.sh modifications, os.popen, pty.spawn, and socket primitives.</div>
         </div>
         
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-08</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">Dynamic Evasion Isolation</div>
+          <div class="rule-desc">Blocks getattr(), builtins, os.popen, pty.spawn, and socket primitives.</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-09</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">Minimal Blast Radius</div>
+          <div class="rule-desc">Limits hotfix additions in production .py files to at most 25 lines to prevent erratic rewrites.</div>
+        </div>
+        
       </div>
 
       <!-- TEE Attestation Manifest Card -->
@@ -715,7 +769,7 @@
 
         <div class="tee-item">
           <div class="tee-item-label">CLI Binary SHA-256 (switchguard-cli)</div>
-          <div class="tee-item-val">065a327715873ce1ddcce04f5ca942de2b16531a840b4d899b269c0065f470dc</div>
+          <div class="tee-item-val">894e0ed5cb855575580c5f7f3cb5a1af594723956b945f779639b77894939041</div>
         </div>
 
         <div class="tee-item">
@@ -725,12 +779,12 @@
 
         <div class="tee-item">
           <div class="tee-item-label">Chain Hash (Merkle Chain)</div>
-          <div class="tee-item-val" style="color: #fbbf24;">fc02d79c52d355aeeae16c650249cf9563bb4cff444edd54208bcd618bea3c7f</div>
+          <div class="tee-item-val" style="color: #fbbf24;">e0a0c7599fb3bb0cab4d65e623fa163ae11a9d31282e9be3ca793892d59788f9</div>
         </div>
 
         <div class="tee-status-row">
           <span style="color: var(--text-secondary);">AST Rules Checked:</span>
-          <span style="font-weight: 700; color: var(--accent-cyan);">8 / 8 Passed</span>
+          <span style="font-weight: 700; color: var(--accent-cyan);">10 / 8 Passed</span>
         </div>
 
         <div class="tee-status-row" style="margin-top: 8px;">
@@ -766,6 +820,42 @@
           <div class="chain-hash">fc02d79c52d355...</div>
           <div class="chain-meta">INC-8041 • hotfix-INC-8041-</div>
         </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #2 (v1.4.2)</div>
+          <div class="chain-hash">f57f1cc9aeacd0...</div>
+          <div class="chain-meta">INC-8041 • hotfix-INC-8041-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #3 (v1.4.2)</div>
+          <div class="chain-hash">105581edb60d06...</div>
+          <div class="chain-meta">INC-8041 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #4 (v1.4.2)</div>
+          <div class="chain-hash">7fefd26ee1215d...</div>
+          <div class="chain-meta">INC-8041 • hotfix-INC-8041-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #5 (v1.4.2)</div>
+          <div class="chain-hash">e42fa115f71780...</div>
+          <div class="chain-meta">INC-8041 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #6 (v1.4.2)</div>
+          <div class="chain-hash">e0a0c7599fb3bb...</div>
+          <div class="chain-meta">INC-8041 • hotfix-INC-8041-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #7 (v1.4.2)</div>
+          <div class="chain-hash">654e336153cd4e...</div>
+          <div class="chain-meta">INC-8041 • </div>
+        </div>
         
       </div>
     </div>
@@ -796,6 +886,72 @@
               <td><code class="hash-code" title="0000000000000000000000000000000000000000000000000000000000000000">000000000000...</code></td>
               <td><code class="hash-code hash-gold" title="fc02d79c52d355aeeae16c650249cf9563bb4cff444edd54208bcd618bea3c7f">fc02d79c52d355ae...</code></td>
               <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:16:09.665033+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>hotfix-INC-8041-v1.4.2.patch</code></td>
+              <td><code class="hash-code" title="f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f">f3e20f7228262677...</code></td>
+              <td><code class="hash-code" title="fc02d79c52d355aeeae16c650249cf9563bb4cff444edd54208bcd618bea3c7f">fc02d79c52d3...</code></td>
+              <td><code class="hash-code hash-gold" title="f57f1cc9aeacd03e52564fabb22cf55c32be161922a6eb2d455fe6b7fc13e497">f57f1cc9aeacd03e...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:16:09.770486+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="de3f344956884b2adc1442babaaacc1df3885a18f2ac20a2e70e9f07374653e8">de3f344956884b2a...</code></td>
+              <td><code class="hash-code" title="f57f1cc9aeacd03e52564fabb22cf55c32be161922a6eb2d455fe6b7fc13e497">f57f1cc9aeac...</code></td>
+              <td><code class="hash-code hash-gold" title="105581edb60d06763ff30852dfc0d26e654a71bf9e34389a576cdd95157ffccf">105581edb60d0676...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:16:49.855309+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>hotfix-INC-8041-v1.4.2.patch</code></td>
+              <td><code class="hash-code" title="f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f">f3e20f7228262677...</code></td>
+              <td><code class="hash-code" title="105581edb60d06763ff30852dfc0d26e654a71bf9e34389a576cdd95157ffccf">105581edb60d...</code></td>
+              <td><code class="hash-code hash-gold" title="7fefd26ee1215da31222d773abe559d084d3023535c9a5d04bf2bb3bc880c7ff">7fefd26ee1215da3...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:16:49.955526+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="474146c9b10cbcad55b609cf1c918474195e23cec3d747ed28b4a6e0dfa75446">474146c9b10cbcad...</code></td>
+              <td><code class="hash-code" title="7fefd26ee1215da31222d773abe559d084d3023535c9a5d04bf2bb3bc880c7ff">7fefd26ee121...</code></td>
+              <td><code class="hash-code hash-gold" title="e42fa115f71780e29fdb501bf628ab97004713e86e36cc512326caeb0c7b01dc">e42fa115f71780e2...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:18:54.381336+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>hotfix-INC-8041-v1.4.2.patch</code></td>
+              <td><code class="hash-code" title="f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f">f3e20f7228262677...</code></td>
+              <td><code class="hash-code" title="e42fa115f71780e29fdb501bf628ab97004713e86e36cc512326caeb0c7b01dc">e42fa115f717...</code></td>
+              <td><code class="hash-code hash-gold" title="e0a0c7599fb3bb0cab4d65e623fa163ae11a9d31282e9be3ca793892d59788f9">e0a0c7599fb3bb0c...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-05T17:18:54.470575+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.2</span></td>
+              <td><span class="badge badge-blue">INC-8041</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="54fd70bc5a7151b40f7b13614cba6a037c4ca9938b50586ebb5c6fb98b12a9fe">54fd70bc5a7151b4...</code></td>
+              <td><code class="hash-code" title="e0a0c7599fb3bb0cab4d65e623fa163ae11a9d31282e9be3ca793892d59788f9">e0a0c7599fb3...</code></td>
+              <td><code class="hash-code hash-gold" title="654e336153cd4e9fde835292f7af2df375839fbefb4dc8c89d1aaa96e2c4c0ba">654e336153cd4e9f...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
             </tr>
             
         </tbody>
