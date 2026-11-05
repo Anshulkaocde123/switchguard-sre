@@ -49,7 +49,7 @@ def test_scenario_1() -> dict:
     sanitized = out1.get("sanitized_text", "")
 
     has_bearer_redacted = "[REDACTED_AUTH_TOKEN]" in sanitized and "secret_live_jwt_token_99" not in sanitized
-    has_email_redacted = "[REDACTED_EMAIL]" in sanitized and "victim_customer@finance.example.com" not in sanitized
+    has_email_redacted = "[REDACTED_EMAIL" in sanitized and "victim_customer@finance.example.com" not in sanitized
     has_aws_redacted = "[REDACTED_AWS_KEY]" in sanitized and "AKIAIOSFODNN7EXAMPLE" not in sanitized
     has_cc_redacted = "[REDACTED_CREDIT_CARD]" in sanitized and "4532" not in sanitized
 

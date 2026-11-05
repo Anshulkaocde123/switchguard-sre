@@ -16,4 +16,5 @@ target/
 # Runtime lock files
 *.lock
 !Cargo.lock
+dedup_index.json
 

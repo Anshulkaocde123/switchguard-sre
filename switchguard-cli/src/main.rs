@@ -96,6 +96,20 @@ struct AuditVerifyOutput {
     failed_entry: Option<AuditVerifyEntry>,
 }
 
+fn compute_hmac_token(val: &str) -> String {
+    let key = env::var("SWITCHGUARD_HMAC_KEY").unwrap_or_default();
+    let hash = if key.is_empty() {
+        format!("{:x}", Sha256::digest(val.as_bytes()))
+    } else {
+        let mut hasher = Sha256::new();
+        hasher.update(key.as_bytes());
+        hasher.update(b":");
+        hasher.update(val.as_bytes());
+        format!("{:x}", hasher.finalize())
+    };
+    hash[..6].to_string()
+}
+
 fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     let mut text = raw_text.to_string();
     let mut total_redactions = 0;
@@ -135,17 +149,25 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     total_redactions += cc_matches;
     text = re_cc.replace_all(&text, "[REDACTED_CREDIT_CARD]").to_string();
 
-    // 6. Redact Email addresses
+    // 6. Redact Email addresses with HMAC suffix (e.g. [REDACTED_EMAIL_8f3a1c])
     let re_email = Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap();
     let email_matches = re_email.find_iter(&text).count();
     total_redactions += email_matches;
-    text = re_email.replace_all(&text, "[REDACTED_EMAIL]").to_string();
+    text = re_email.replace_all(&text, |caps: &regex::Captures| {
+        let matched = caps.get(0).map_or("", |m| m.as_str());
+        let token = compute_hmac_token(matched);
+        format!("[REDACTED_EMAIL_{}]", token)
+    }).to_string();
 
-    // 7. Redact IPv4 addresses
+    // 7. Redact IPv4 addresses with HMAC suffix (e.g. [REDACTED_IPV4_8f3a1c])
     let re_ipv4 = Regex::new(r"\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b").unwrap();
     let ip_matches = re_ipv4.find_iter(&text).count();
     total_redactions += ip_matches;
-    text = re_ipv4.replace_all(&text, "[REDACTED_IPV4]").to_string();
+    text = re_ipv4.replace_all(&text, |caps: &regex::Captures| {
+        let matched = caps.get(0).map_or("", |m| m.as_str());
+        let token = compute_hmac_token(matched);
+        format!("[REDACTED_IPV4_{}]", token)
+    }).to_string();
 
     // Classification
     let classification = if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
