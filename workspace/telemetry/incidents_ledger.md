@@ -21,3 +21,4 @@ User: [REDACTED_EMAIL]
 Auth: [REDACTED_AUTH_TOKEN]
 Details: Applying voucher FLAT100 on a $40 order reduced total to -$60.00.
 ```
+| 2026-11-05 15:27:23 UTC | `INC-8041` | `NEGATIVE_TOTAL_CALCULATION` | 2 | `a7a31148dc23...` | Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL] FLAT100 -0.00 |

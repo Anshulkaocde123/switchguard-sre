@@ -188,6 +188,16 @@ fn main() {
         process::exit(1);
     }
 
+    if args[1] == "--version" || args[1] == "-V" || args[1] == "version" {
+        println!("switchguard-cli {}", env!("CARGO_PKG_VERSION"));
+        process::exit(0);
+    }
+
+    if args[1] == "--help" || args[1] == "-h" || args[1] == "help" {
+        println!("SwitchGuard SRE Security Guardrail CLI v{}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]", env!("CARGO_PKG_VERSION"));
+        process::exit(0);
+    }
+
     match args[1].as_str() {
         "scrub" => {
             let input = if args.len() > 2 {

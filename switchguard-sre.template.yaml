@@ -1,0 +1,68 @@
+version: 1
+name: SwitchGuard SRE War Room
+description: >
+  Autonomous 3-agent SRE incident triage, deterministic pytest reproduction,
+  Rust AST + Switch Trust security verification, and human-gated hotfix release room.
+
+params:
+  team:
+    type: string
+    pattern: "[a-z][a-z0-9-]*"
+    default: sre
+    description: Prefix for the created agents and war room.
+  provider:
+    type: provider
+    default: [opencode, antigravity, claude, codex]
+    description: Local coding agent provider (defaults to OpenCode with Google Gemini Pro).
+  bridge:
+    type: bridge
+    default: [$first]
+    description: Collaboration bridge to mirror the room into (Mattermost/Slack/Discord).
+
+agents:
+  - name: "{team}-sentinel"
+    provider: "{provider}"
+    directory: "{$agents_dir}/telemetry"
+    addressing: anyone
+    description: >
+      Public intake and triage agent (@triage). Runs `python3 triage_helper.py` (which invokes
+      `switchguard-cli scrub` in Rust to redact PII/tokens), classifies reports into BUG,
+      QUESTION, or INCOMPLETE, updates `incidents_ledger.md`, and routes confirmed bugs to
+      @{team}-repro with exact reproduction parameters.
+
+  - name: "{team}-repro"
+    provider: "{provider}"
+    directory: "{$agents_dir}/sandbox-app"
+    addressing: owner-agents
+    description: >
+      Isolated reproduction and patching agent (@repro). Writes a failing pytest test first,
+      posts the verbatim traceback (<=30 lines), applies the minimal code fix in `cart_service/`,
+      re-runs `pytest`, executes `switchguard-cli verify-diff .` and `switch-trust scan`,
+      posts the unified git diff, and halts at the human Incident Commander approval gate.
+
+  - name: "{team}-clerk"
+    provider: "{provider}"
+    directory: "{$agents_dir}/release-ops"
+    addressing: owner-agents
+    description: >
+      Gated release clerk (@release). Remains strictly idle until the human Incident Commander
+      replies with explicit `Approved`. Then executes `python3 cut_release.py INC-8041 v1.4.2`
+      to cut the hotfix branch, save the patch artifact, and update `RELEASE_AUDIT.log`.
+
+room:
+  name: "{team}-war-room"
+  bridge: "{bridge}"
+  users: ["{$creator}"]
+  agents:
+    - "{team}-sentinel"
+    - "{team}-repro"
+    - "{team}-clerk"
+  kickoff: "SwitchGuard SRE War Room online. Post an incident alert and mention @{team}-sentinel to begin."
+  instructions: |
+    # SwitchGuard SRE Room Operational Laws
+
+    1. **Announce Before Slow Commands**: Before running `pytest`, `switchguard-cli`, `switch-trust scan`, or Git commands, post a one-line status message stating the exact command being executed.
+    2. **Verbatim Traceback & Line-Cap Rule (Issue #1226 Guard)**: Never summarize test results with vague text. Paste the exact command run and the verbatim terminal output inside a fenced code block capped at 30 lines (under 1,500 characters).
+    3. **Fail-Closed Evidence Boundary**: `@{team}-repro` must write and run a failing `pytest` test reproducing the reported bug BEFORE editing `cart_service` source code. If the bug cannot be reproduced deterministically, halt and post `STATUS: REPRODUCTION_INCONCLUSIVE`.
+    4. **Dual Security & Precision Audit**: After `pytest` passes on a candidate fix, `@{team}-repro` must run `switchguard-cli verify-diff .` (and `switch-trust scan` if configured) and paste the Markdown verification scorecard and `git diff` into the chat thread.
+    5. **Mandatory Human Incident Commander Gate**: `@{team}-clerk` (`@release`) is strictly forbidden from cutting a release branch or committing a patch until the human Incident Commander explicitly posts `Approved` in the room.

@@ -78,60 +78,36 @@ flowchart LR
 
 ---
 
-### [ ] Batch 2: Initializing Track 01 Repository & Antigravity Context Brain (Next Up)
-- [ ] Create immutable directory tree:
-  ```bash
-  mkdir -p ~/switchguard-sre/.antigravity
-  mkdir -p ~/switchguard-sre/workspace/telemetry
-  mkdir -p ~/switchguard-sre/workspace/sandbox-app/cart_service
-  mkdir -p ~/switchguard-sre/workspace/sandbox-app/tests
-  mkdir -p ~/switchguard-sre/workspace/release-ops/artifacts
-  mkdir -p ~/switchguard-sre/rust-tools/switchguard-cli/src
-  mkdir -p ~/switchguard-sre/scripts
-  ```
-- [ ] Initialize git repo on branch `main`.
-- [ ] Write master [`AGENTS.md`](file:///home/anshul-jain/switchguard-sre/AGENTS.md) and [`SWITCH_PROTOCOL.md`](file:///home/anshul-jain/switchguard-sre/SWITCH_PROTOCOL.md).
+### [x] Batch 2: Initializing Track 01 Repository & Antigravity Context Brain (Completed)
+- [x] Initialized root git repo on branch `main` and linked with GitHub `Anshulkaocde123/switchguard-sre`.
+- [x] Created directory tree: `.antigravity`, `workspace/telemetry`, `workspace/sandbox-app`, `workspace/release-ops/releases`, `switchguard-cli/src`, `scripts`.
+- [x] Authored master context files: `AGENTS.md`, `SWITCH_PROTOCOL.md`, `SKILL_RUST_VERIFIER.md`, `.antigravity/rules.md`.
 
 ---
 
-### [ ] Batch 3: Building the Rust Security/AST Verifier & Seeded Cart-Service Sandbox
-- [ ] Install Rust / Cargo toolchain if not present (`curl https://sh.rustup.rs | sh`).
-- [ ] Create `rust-tools/switchguard-cli/Cargo.toml` and `src/main.rs`:
-  - `scrub`: Redacts Bearer tokens, API keys, emails, passwords with microsecond latency metrics.
-  - `verify-diff`: Validates unified git diffs for `AST-01` (ZeroDivision Boundary), `FIN-02` (Decimal ROUND_HALF_UP precision), and `OWASP-LLM06` (Secrets & exec leak).
-- [ ] Compile Rust CLI in release mode: `cargo build --release`.
-- [ ] Symlink binary to `~/.local/bin/switchguard-cli`.
-- [ ] Seed `cart_service` microservice with intentional v2.14.0 `SAVE20` loyalty weight division-by-zero bug:
-  - `cart_service/__init__.py`
-  - `cart_service/pricing.py`
-  - `tests/test_baseline.py`
-- [ ] Commit baseline to git and verify `pytest -q`.
+### [x] Batch 3: Building the Rust Security/AST Verifier & Seeded Sandbox (Completed)
+- [x] Built `switchguard-cli` (v0.2.0) with `regex`, `serde`, `serde_json`, and `sha2`.
+- [x] Implemented subcommands `scrub` (<0.4ms) and `verify-diff` (AST and secret checks).
+- [x] Installed `switchguard-cli` to `~/.local/bin`, `~/bin`, and `~/.opencode/bin`.
+- [x] Seeded `workspace/sandbox-app/cart_service.py` with `FLAT100` edge case and passing unit tests (`test_cart.py`).
 
 ---
 
-### [ ] Batch 4: Building Agent 1 (sre-sentinel) & Agent 3 Release Tooling
-- [ ] Create `workspace/telemetry/incidents_ledger.md` (Active incident tracking ledger).
-- [ ] Create `workspace/telemetry/triage_helper.py` (Pipes raw alerts through Rust `scrub` and classifies with Google Gemini).
-- [ ] Create `workspace/release-ops/CHANGELOG.md`.
-- [ ] Create `workspace/release-ops/cut_release.py`:
-  - Enforces passing `pytest` before release.
-  - Captures unified diff into `artifacts/<version>-<incident>.patch`.
-  - Cuts hotfix git branch `hotfix/<version>-<incident>`.
-  - Appends audit entry to `CHANGELOG.md`.
+### [x] Batch 4: Production Triage & Release Tooling (Completed)
+- [x] Upgraded `workspace/telemetry/triage_helper.py` to invoke compiled Rust CLI and maintain `incidents_ledger.md`.
+- [x] Upgraded `workspace/release-ops/cut_release.py` to enforce AST security gates, export `.patch` artifacts, and log to `RELEASE_AUDIT.log`.
+- [x] Verified full execution of `triage_helper.py` and `cut_release.py`.
 
 ---
 
-### [ ] Batch 5: Writing `switchguard-sre.template.yaml`, Room Instructions, & Launching Room
-- [ ] Create `switchguard-sre.template.yaml`:
-  - 3 Agents: `sre-sentinel`, `sre-repro`, `sre-clerk`.
-  - Shared room `sre-war-room` with 5 operational laws (line-cap rule, fail-closed boundary, dual security audit, human gate).
-- [ ] Create `scripts/setup_demo.sh` (2-second clean-room reset for judges).
-- [ ] Import template into Switch Console or register agents.
-- [ ] Open `#sre-war-room` in Mattermost (`http://localhost:8065`) and enable mid-turn tracking: `!follow-ups on`.
+### [x] Batch 5: Switch Room Template & Documentation (Completed)
+- [x] Created `switchguard-sre.template.yaml` with 3-agent topology and Issue #1158 single-line kickoff workaround.
+- [x] Created `scripts/setup_demo.sh` providing a 2-second clean-room reset for judges.
+- [x] Created comprehensive `README.md` with architecture diagrams, 4 pillars, and demo walkthrough.
 
 ---
 
-### [ ] Batch 6: Running the 90-Second Deterministic Demo & Recording
+### [ ] Batch 6: Running the War Room Drill & Recording (Next Up)
 - [ ] Run `./scripts/setup_demo.sh` to ensure clean baseline.
 - [ ] **Turn 1 (Alert Ingestion & Repro)**:
   - Post alert with PII and `SAVE20` multi-item trigger.
