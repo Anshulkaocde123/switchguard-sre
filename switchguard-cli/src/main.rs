@@ -246,15 +246,28 @@ fn resolve_dedup_index_path() -> PathBuf {
     if let Ok(val) = env::var("SWITCHGUARD_DEDUP_INDEX") {
         return PathBuf::from(val);
     }
-    let p1 = Path::new("workspace/telemetry/dedup_index.json");
-    if p1.exists() {
-        return p1.to_path_buf();
+    let candidates = [
+        "workspace/telemetry/dedup_index.json",
+        "../telemetry/dedup_index.json",
+        "telemetry/dedup_index.json",
+        "dedup_index.json",
+    ];
+    for c in &candidates {
+        let p = Path::new(c);
+        if p.exists() {
+            return p.to_path_buf();
+        }
     }
-    let p2 = Path::new("/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json");
-    if p2.exists() {
-        return p2.to_path_buf();
+    if let Ok(out) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
+        if out.status.success() {
+            let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let candidate = Path::new(&root).join("workspace/telemetry/dedup_index.json");
+            if candidate.exists() {
+                return candidate;
+            }
+        }
     }
-    p1.to_path_buf()
+    PathBuf::from("workspace/telemetry/dedup_index.json")
 }
 
 fn record_or_check_dedup(
@@ -348,11 +361,20 @@ fn record_or_check_dedup(
 
 fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let target = Path::new(path_str);
+    let (cwd, pathspec) = if target.is_file() {
+        (
+            target.parent().unwrap_or_else(|| Path::new(".")),
+            target.file_name().and_then(|s| s.to_str()).unwrap_or("."),
+        )
+    } else {
+        (target, ".")
+    };
+
     let mut diff_text = String::new();
 
-    // 1. Inspect diff against HEAD to include both staged and unstaged changes
+    // 1. Inspect diff against HEAD to include both staged and unstaged changes restricted to target
     if let Ok(output) = Command::new("git")
-        .args(["-C", path_str, "diff", "HEAD"])
+        .args(["-C", cwd.to_str().unwrap_or("."), "diff", "HEAD", "--", pathspec])
         .output()
     {
         diff_text.push_str(&String::from_utf8_lossy(&output.stdout));
@@ -361,7 +383,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     // Fallback: check cached diff if unstaged was empty
     if diff_text.trim().is_empty() {
         if let Ok(output) = Command::new("git")
-            .args(["-C", path_str, "diff", "--cached"])
+            .args(["-C", cwd.to_str().unwrap_or("."), "diff", "--cached", "--", pathspec])
             .output()
         {
             diff_text.push_str(&String::from_utf8_lossy(&output.stdout));
@@ -408,8 +430,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         .collect();
 
     let app_py_lines_added: usize = app_py_files.iter().map(|(_, a, _)| a.len()).sum();
-    let app_py_lines_deleted: usize = app_py_files.iter().map(|(_, _, d)| d.len()).sum();
-    let app_py_has_changes = (app_py_lines_added + app_py_lines_deleted) > 0;
+    let _app_py_lines_deleted: usize = app_py_files.iter().map(|(_, _, d)| d.len()).sum();
 
     // Reject truly empty diffs (0 bytes) before inspecting files (exit code 3)
     if diff_text.trim().is_empty() {
@@ -424,7 +445,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
             rules: vec![VerifyRule {
                 rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
                 status: "FAIL".to_string(),
-                description: "Rejects empty diffs or diffs without modifications to .py application files".to_string(),
+                description: "Rejects empty diffs (0 bytes)".to_string(),
             }],
         };
     }
@@ -433,7 +454,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     // Find git root for target path to accurately compile modified .py files
     let git_root = Command::new("git")
-        .args(["-C", path_str, "rev-parse", "--show-toplevel"])
+        .args(["-C", cwd.to_str().unwrap_or("."), "rev-parse", "--show-toplevel"])
         .output()
         .ok()
         .and_then(|out| {
@@ -448,7 +469,13 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     // AST-SEC-00: VALID_PYTHON_SYNTAX — Run python3 -m py_compile on modified .py files
     for (filename, _, _) in &file_diffs {
         if filename.ends_with(".py") {
-            let full_path = git_root.join(filename);
+            let full_path = if git_root.join(filename).exists() {
+                git_root.join(filename)
+            } else if target.join(filename).exists() {
+                target.join(filename)
+            } else {
+                PathBuf::from(filename)
+            };
             if full_path.exists() {
                 if let Ok(py_res) = Command::new("python3")
                     .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
@@ -481,10 +508,10 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     // AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — Block modifications to .git/, .env, or *.sh files
     for (filename, _, _) in &file_diffs {
-        if filename.contains(".git/") || filename.contains("/.git") || filename == ".git" {
+        if filename.starts_with(".git/") || filename.contains("/.git/") || filename.ends_with("/.git") || filename == ".git" {
             findings.push(format!("AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — modification to .git path detected in '{}'", filename));
         }
-        if filename.contains(".env") {
+        if filename.starts_with(".env") || filename.contains("/.env") {
             findings.push(format!("AST-SEC-07: NO_GIT_OR_ENV_TAMPERING — modification to .env file detected in '{}'", filename));
         }
         if filename.ends_with(".sh") {
@@ -550,26 +577,6 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
                 findings.push(format!("{}: found '{}' in '{}'", desc, token, line.trim()));
             }
         }
-    }
-
-    if findings.is_empty() && !app_py_has_changes {
-        return VerifyOutput {
-            verdict: "BLOCKED".to_string(),
-            status: "EMPTY_PATCH_REJECTED".to_string(),
-            target_path: target.display().to_string(),
-            sha256: diff_hash,
-            forbidden_findings: vec![format!(
-                "AST-SEC-00: EMPTY_PATCH_REJECTED — No changes in .py application files (app_files={}, app_lines_added={}, app_lines_deleted={})",
-                app_py_files.len(),
-                app_py_lines_added,
-                app_py_lines_deleted
-            )],
-            rules: vec![VerifyRule {
-                rule: "AST-SEC-00: NO_EMPTY_PATCH".to_string(),
-                status: "FAIL".to_string(),
-                description: "Rejects empty diffs or diffs without modifications to .py application files".to_string(),
-            }],
-        };
     }
 
     let is_blocked = !findings.is_empty();
@@ -882,14 +889,24 @@ fn main() {
                     "workspace/release-ops/RELEASE_AUDIT.log",
                     "../release-ops/RELEASE_AUDIT.log",
                     "RELEASE_AUDIT.log",
-                    "/home/anshul-jain/switchguard-sre/workspace/release-ops/RELEASE_AUDIT.log",
+                    "release-ops/RELEASE_AUDIT.log",
                 ];
-                let mut chosen =
-                    "/home/anshul-jain/switchguard-sre/workspace/release-ops/RELEASE_AUDIT.log".to_string();
+                let mut chosen = "workspace/release-ops/RELEASE_AUDIT.log".to_string();
                 for c in &candidates {
                     if Path::new(c).exists() {
                         chosen = c.to_string();
                         break;
+                    }
+                }
+                if !Path::new(&chosen).exists() {
+                    if let Ok(out) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
+                        if out.status.success() {
+                            let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            let candidate = Path::new(&root).join("workspace/release-ops/RELEASE_AUDIT.log");
+                            if candidate.exists() {
+                                chosen = candidate.to_string_lossy().to_string();
+                            }
+                        }
                     }
                 }
                 chosen

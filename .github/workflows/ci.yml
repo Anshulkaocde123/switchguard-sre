@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: SwitchGuard SRE CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies & Pytest
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Build and Install switchguard-cli
+        run: |
+          cargo build --release -j 2 --manifest-path switchguard-cli/Cargo.toml
+          mkdir -p $HOME/.local/bin $HOME/.opencode/bin $HOME/bin
+          cp switchguard-cli/target/release/switchguard-cli $HOME/.local/bin/switchguard-cli
+          cp switchguard-cli/target/release/switchguard-cli $HOME/.opencode/bin/switchguard-cli
+          cp switchguard-cli/target/release/switchguard-cli $HOME/bin/switchguard-cli
+          chmod +x $HOME/.local/bin/switchguard-cli
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Run 7-Layer Mega SRE Test Suite
+        run: |
+          python3 scripts/mega_sre_test_suite.py

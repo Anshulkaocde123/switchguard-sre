@@ -29,7 +29,48 @@ TELEMETRY_DIR = os.path.join(ROOT_DIR, "workspace", "telemetry")
 RELEASE_OPS_DIR = os.path.join(ROOT_DIR, "workspace", "release-ops")
 SCRIPTS_DIR = os.path.join(ROOT_DIR, "scripts")
 
-CLI_BIN = shutil.which("switchguard-cli") or os.path.expanduser("~/.local/bin/switchguard-cli")
+def ensure_cli_binary() -> str:
+    # 1. Check in $PATH
+    found = shutil.which("switchguard-cli")
+    if found and os.path.isfile(found) and os.access(found, os.X_OK):
+        return found
+
+    # 2. Check ~/.local/bin/switchguard-cli
+    local_bin = os.path.expanduser("~/.local/bin/switchguard-cli")
+    if os.path.isfile(local_bin) and os.access(local_bin, os.X_OK):
+        return local_bin
+
+    # 3. Check switchguard-cli/target/release/switchguard-cli
+    target_bin = os.path.join(ROOT_DIR, "switchguard-cli", "target", "release", "switchguard-cli")
+    if os.path.isfile(target_bin) and os.access(target_bin, os.X_OK):
+        os.makedirs(os.path.expanduser("~/.local/bin"), exist_ok=True)
+        shutil.copy2(target_bin, local_bin)
+        os.chmod(local_bin, 0o755)
+        return local_bin
+
+    # 4. Bootstrap build via cargo
+    print(f"\033[93m==> switchguard-cli not found in PATH, ~/.local/bin, or target/release. Bootstrapping build...\033[0m")
+    cargo_toml = os.path.join(ROOT_DIR, "switchguard-cli", "Cargo.toml")
+    build_cmd = ["cargo", "build", "--release", "-j", "2", "--manifest-path", cargo_toml]
+    proc = subprocess.run(build_cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Failed to bootstrap switchguard-cli: {proc.stderr}")
+
+    os.makedirs(os.path.expanduser("~/.local/bin"), exist_ok=True)
+    shutil.copy2(target_bin, local_bin)
+    os.chmod(local_bin, 0o755)
+
+    for alt_dir in [os.path.expanduser("~/.opencode/bin"), os.path.expanduser("~/bin")]:
+        try:
+            os.makedirs(alt_dir, exist_ok=True)
+            shutil.copy2(target_bin, os.path.join(alt_dir, "switchguard-cli"))
+            os.chmod(os.path.join(alt_dir, "switchguard-cli"), 0o755)
+        except Exception:
+            pass
+
+    return local_bin
+
+CLI_BIN = ensure_cli_binary()
 CART_SERVICE_PY = os.path.join(SANDBOX_DIR, "cart_service.py")
 TEST_CART_PY = os.path.join(SANDBOX_DIR, "test_cart.py")
 TRIAGE_HELPER_PY = os.path.join(TELEMETRY_DIR, "triage_helper.py")
@@ -272,7 +313,7 @@ def suite_3_adversarial_and_ast_bypass() -> dict:
                 log_fail(f"AST Guard: {name}", f"Expected exit {expected_rc} and '{expected_rule}', got rc={proc.returncode}, output:\n{out[:300]}")
                 return False
         finally:
-            run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "."])
+            run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "."])
             run_cmd(["git", "-C", SANDBOX_DIR, "clean", "-fd"])
 
     # 3.4 Mutation A: Direct os.system("id")
@@ -312,7 +353,7 @@ def suite_3_adversarial_and_ast_bypass() -> dict:
 
     # 3.9 Mutation F: Empty 0-byte diff on clean tree -> exit 3 (EMPTY_PATCH_REJECTED)
     sub_mut_t0 = time.perf_counter()
-    run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "."])
+    run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "."])
     empty_diff_proc = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
     if empty_diff_proc.returncode == 3 and "EMPTY_PATCH_REJECTED" in empty_diff_proc.stdout:
         log_pass("AST Guard: Empty Diff Rejection", "0-byte clean tree rejected with exit 3 (EMPTY_PATCH_REJECTED)", (time.perf_counter() - sub_mut_t0)*1000)
@@ -547,7 +588,7 @@ def suite_5_integration_and_rollback() -> dict:
 
     finally:
         # Revert sandbox-app to clean baseline
-        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "."])
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "."])
         run_cmd(["git", "-C", SANDBOX_DIR, "clean", "-fd"])
 
     elapsed = (time.perf_counter() - t0) * 1000
@@ -708,53 +749,54 @@ def suite_7_latency_benchmarks() -> dict:
 # MAIN RUNNER & SCORECARD GENERATOR
 # ==============================================================================
 def main():
-    print(f"\n{Colors.BOLD}{Colors.CYAN}{'#'*75}{Colors.END}")
-    print(f"{Colors.BOLD}{Colors.CYAN}# SwitchGuard SRE — 7-Layer Red-Team & Verification Mega Suite{Colors.END}")
-    print(f"{Colors.BOLD}{Colors.CYAN}{'#'*75}{Colors.END}")
+    try:
+        print(f"\n{Colors.BOLD}{Colors.CYAN}{'#'*75}{Colors.END}")
+        print(f"{Colors.BOLD}{Colors.CYAN}# SwitchGuard SRE — 7-Layer Red-Team & Verification Mega Suite{Colors.END}")
+        print(f"{Colors.BOLD}{Colors.CYAN}{'#'*75}{Colors.END}")
 
-    total_start = time.perf_counter()
+        total_start = time.perf_counter()
 
-    suites = [
-        suite_1_smoke_and_environment,
-        suite_2_exhaustive_unit_tests,
-        suite_3_adversarial_and_ast_bypass,
-        suite_4_high_concurrency_stress_test,
-        suite_5_integration_and_rollback,
-        suite_6_circuit_breaker,
-        suite_7_latency_benchmarks,
-    ]
+        suites = [
+            suite_1_smoke_and_environment,
+            suite_2_exhaustive_unit_tests,
+            suite_3_adversarial_and_ast_bypass,
+            suite_4_high_concurrency_stress_test,
+            suite_5_integration_and_rollback,
+            suite_6_circuit_breaker,
+            suite_7_latency_benchmarks,
+        ]
 
-    suite_reports = []
-    for s_fn in suites:
-        rep = s_fn()
-        suite_reports.append(rep)
+        suite_reports = []
+        for s_fn in suites:
+            rep = s_fn()
+            suite_reports.append(rep)
 
-    total_elapsed = (time.perf_counter() - total_start) * 1000
-    all_passed = all(r["passed"] for r in suite_reports)
-    total_tests = sum(r["tests_run"] for r in suite_reports)
+        total_elapsed = (time.perf_counter() - total_start) * 1000
+        all_passed = all(r["passed"] for r in suite_reports)
+        total_tests = sum(r["tests_run"] for r in suite_reports)
 
-    # Print Formal SRE Scorecard
-    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
-    print(f"{Colors.BOLD}{Colors.CYAN}           SWITCHGUARD SRE VERIFICATION SCORECARD{Colors.END}")
-    print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
-    print(f"| # | Testing Layer | Tests | Verdict | Runtime |")
-    print(f"| :--- | :--- | :--- | :--- | :--- |")
-    for idx, r in enumerate(suite_reports, 1):
-        status_badge = f"{Colors.GREEN}PASS{Colors.END}" if r["passed"] else f"{Colors.RED}FAIL{Colors.END}"
-        print(f"| {idx} | {r['suite']} | {r['tests_run']} | {status_badge} | {r['elapsed_ms']:.1f}ms |")
-    print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
-    print(f"{Colors.BOLD}Total Tests Run: {total_tests} | Total Suite Execution Time: {total_elapsed:.1f}ms{Colors.END}")
+        # Print Formal SRE Scorecard
+        print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
+        print(f"{Colors.BOLD}{Colors.CYAN}           SWITCHGUARD SRE VERIFICATION SCORECARD{Colors.END}")
+        print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
+        print(f"| # | Testing Layer | Tests | Verdict | Runtime |")
+        print(f"| :--- | :--- | :--- | :--- | :--- |")
+        for idx, r in enumerate(suite_reports, 1):
+            status_badge = f"{Colors.GREEN}PASS{Colors.END}" if r["passed"] else f"{Colors.RED}FAIL{Colors.END}"
+            print(f"| {idx} | {r['suite']} | {r['tests_run']} | {status_badge} | {r['elapsed_ms']:.1f}ms |")
+        print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
+        print(f"{Colors.BOLD}Total Tests Run: {total_tests} | Total Suite Execution Time: {total_elapsed:.1f}ms{Colors.END}")
 
-    overall_status = f"{Colors.GREEN}{Colors.BOLD}100% PASSED — PRODUCTION READY{Colors.END}" if all_passed else f"{Colors.RED}{Colors.BOLD}FAILED{Colors.END}"
-    print(f"{Colors.BOLD}Final Scorecard Verdict: {overall_status}\n")
+        overall_status = f"{Colors.GREEN}{Colors.BOLD}100% PASSED — PRODUCTION READY{Colors.END}" if all_passed else f"{Colors.RED}{Colors.BOLD}FAILED{Colors.END}"
+        print(f"{Colors.BOLD}Final Scorecard Verdict: {overall_status}\n")
 
-    # Generate Markdown Report TEST_VERIFICATION_REPORT.md
-    report_path = os.path.join(ROOT_DIR, "TEST_VERIFICATION_REPORT.md")
-    bms = suite_reports[-1].get("benchmarks", {})
-    scrub_b = bms.get("scrub", {})
-    diff_b = bms.get("diff", {})
+        # Generate Markdown Report TEST_VERIFICATION_REPORT.md
+        report_path = os.path.join(ROOT_DIR, "TEST_VERIFICATION_REPORT.md")
+        bms = suite_reports[-1].get("benchmarks", {})
+        scrub_b = bms.get("scrub", {})
+        diff_b = bms.get("diff", {})
 
-    report_md = f"""# SwitchGuard SRE — 7-Layer Red-Team & Verification Report
+        report_md = f"""# SwitchGuard SRE — 7-Layer Red-Team & Verification Report
 
 **Generated**: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}  
 **Architecture**: Switch Console + Google Antigravity ACP (Hybrid Rust v0.3.0 + Python 3.12)  
@@ -811,11 +853,16 @@ def main():
 
 *Report signed by Principal SRE & Red-Team Testing Harness.*
 """
-    with open(report_path, "w") as f:
-        f.write(report_md)
-    print(f"{Colors.GREEN}✔ Verification report saved to: TEST_VERIFICATION_REPORT.md{Colors.END}\n")
+        with open(report_path, "w") as f:
+            f.write(report_md)
+        print(f"{Colors.GREEN}✔ Verification report saved to: TEST_VERIFICATION_REPORT.md{Colors.END}\n")
 
-    sys.exit(0 if all_passed else 1)
+        sys.exit(0 if all_passed else 1)
+    finally:
+        # Prevent state poisoning and leave workspace 100% clean for Switch Console
+        setup_script = os.path.join(ROOT_DIR, "scripts", "setup_demo.sh")
+        if os.path.exists(setup_script):
+            subprocess.run(["bash", setup_script], cwd=ROOT_DIR)
 
 if __name__ == "__main__":
     main()

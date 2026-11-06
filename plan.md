@@ -46,8 +46,8 @@
 ## 3. Google Antigravity 2.0 Multi-Agent IDE Workflow
 
 ### Context Control Files in Workspace Root
-- [`AGENTS.md`](file:///home/anshul-jain/switchguard-sre/AGENTS.md): Directory isolation, coding conventions, test commands.
-- [`SWITCH_PROTOCOL.md`](file:///home/anshul-jain/switchguard-sre/SWITCH_PROTOCOL.md): Switch 0.31+ protocol rules, 30-line / 1,500-char traceback cap (preventing Issue #1226 message splitting).
+- [`AGENTS.md`](AGENTS.md): Directory isolation, coding conventions, test commands.
+- [`SWITCH_PROTOCOL.md`](SWITCH_PROTOCOL.md): Switch 0.31+ protocol rules, 30-line / 1,500-char traceback cap (preventing Issue #1226 message splitting).
 - `SKILL_RUST_VERIFIER.md`: CLI flags, exit codes, JSON/Markdown output formatting.
 - `.antigravity/rules.md`: Automatic test execution post file edit, secret leak prevention.
 

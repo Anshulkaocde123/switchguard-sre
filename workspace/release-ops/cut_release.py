@@ -1387,7 +1387,7 @@ def execute_release(incident_id: str, version: str):
 
     # 3. Export git diff HEAD to patch artifact (catches staged + unstaged changes)
     diff_proc = subprocess.run(
-        ["git", "-C", SANDBOX_DIR, "diff", "HEAD"],
+        ["git", "-C", SANDBOX_DIR, "diff", "HEAD", "--", "."],
         capture_output=True,
         text=True,
         check=True
@@ -1603,8 +1603,8 @@ def execute_rollback(incident_id: str, version: str):
     2. Appends a ROLLED_BACK entry to RELEASE_AUDIT.log (with hash-chaining)
     3. Sets incident_state.json to ROLLED_BACK
     """
-    # 1. Revert sandbox-app/cart_service.py to HEAD
-    subprocess.run(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"], check=False)
+    # 1. Revert sandbox-app to HEAD
+    subprocess.run(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "."], check=False)
 
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     rollback_sha256 = hashlib.sha256(f"ROLLBACK:{incident_id}:{version}:{timestamp}".encode("utf-8")).hexdigest()
