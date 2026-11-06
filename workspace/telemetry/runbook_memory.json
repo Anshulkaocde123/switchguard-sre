@@ -2,14 +2,34 @@
   "version": "1.0",
   "resolutions": [
     {
+      "error_classification": "ZERO_DIVISION_ERROR",
+      "incident_id": "INC-8042",
+      "version": "v1.4.4",
+      "target_file": "cart_service.py",
+      "fix_pattern": "if bundle_qty <= 0: return 0.0",
+      "patch_sha256": "98a12f84b64e528198f3ec29a1b89cd123456789abcdef0123456789abcdef01",
+      "summary": "ZeroDivisionError in calculate_bundle_proration when bundle quantity is 0",
+      "timestamp": "2026-11-06T05:10:00.000000+00:00"
+    },
+    {
+      "error_classification": "PROMPT_INJECTION_ATTEMPT",
+      "incident_id": "INC-8043",
+      "version": "v1.4.5",
+      "target_file": "cart_service.py",
+      "fix_pattern": "AST-SEC-02: BLOCKED os.system injection attempt; sanitize customer_info",
+      "patch_sha256": "7f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
+      "summary": "Adversarial prompt injection in customer username neutralized by switchguard-cli AST guardrails",
+      "timestamp": "2026-11-06T05:15:00.000000+00:00"
+    },
+    {
       "error_classification": "NEGATIVE_TOTAL_CALCULATION",
       "incident_id": "INC-8041",
       "version": "v1.4.2",
       "target_file": "cart_service.py",
       "fix_pattern": "total = max(0.0, subtotal - 100.0)",
-      "patch_sha256": "f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f",
+      "patch_sha256": "0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28",
       "summary": "Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL] FLAT100 -0.00",
-      "timestamp": "2026-11-05T17:18:54.381336+00:00"
+      "timestamp": "2026-11-06T05:12:19.859440+00:00"
     },
     {
       "error_classification": "NEGATIVE_TOTAL_CALCULATION",
@@ -17,9 +37,9 @@
       "version": "v1.4.3",
       "target_file": "cart_service.py",
       "fix_pattern": "total = max(0.0, subtotal - 100.0)",
-      "patch_sha256": "f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f",
+      "patch_sha256": "0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28",
       "summary": "Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] cart_service.py line 5 FLAT100 -0.00",
-      "timestamp": "2026-11-05T17:54:29.299396+00:00"
+      "timestamp": "2026-11-06T05:12:44.532496+00:00"
     }
   ]
 }

@@ -1,13 +1,13 @@
 diff --git a/cart_service.py b/cart_service.py
-index d402fb4..30b4667 100644
+index 2ff30ac..aedd086 100644
 --- a/cart_service.py
 +++ b/cart_service.py
-@@ -9,7 +9,7 @@ def calculate_cart_total(items: list[dict], discount_code: str = None) -> float:
+@@ -51,7 +51,7 @@ def calculate_cart_total(
  
-     subtotal = sum(item["price"] * item.get("quantity", 1) for item in items)
+     # Discount Code Evaluation
      if discount_code == "FLAT100":
 -        total = subtotal - 100.0
 +        total = max(0.0, subtotal - 100.0)
-     else:
-         total = subtotal
-     return total
+     elif discount_code == "SAVE20":
+         total = subtotal * 0.80
+     elif discount_code == "VIP_FREE":

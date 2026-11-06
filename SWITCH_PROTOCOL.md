@@ -12,4 +12,7 @@
 8. **Empty-Patch Rejection (AST-SEC-00):** Both `switchguard-cli verify-diff` and `cut_release.py` reject empty diffs (0-byte patches) with `EMPTY_PATCH_REJECTED` (exit code 3). Diffs always compare against `git diff HEAD` to capture staged + unstaged changes.
 9. **Human-in-the-Loop Release:** `sre-clerk` cannot execute `cut_release.py` without an explicit `Approved` message from the human Incident Commander.
 10. **Deterministic State Machine & Circuit Breaker:** All incidents flow through a strict one-way DAG: `sre-sentinel → sre-repro → Human Commander → sre-clerk`. State is tracked in `workspace/telemetry/incident_state.json`. If `verify-diff` or `pytest` fails twice, the agent halts with `[CIRCUIT_BREAKER_TRIPPED] Escalating to @admin`.
-11. **Platform Defenses (Issues #1158 & #1226):** Keep `kickoff:` in templates to a single plain-text line; all chat tracebacks capped at 30 lines / 1,500 characters.
+11. **Platform Defenses & Upstream Switch PRs:**
+    - **Upstream Switch PR #827 (Issue #1097):** Room documents are invisible in bridged Mattermost chat; all status scorecards, Markdown tables, pytest outputs, and unified git diffs are posted directly into the chat thread.
+    - **Upstream Switch PR #837 (Issue #1226):** All terminal tracebacks posted to Switch rooms must be <= 30 lines and < 1,500 characters to prevent ACP message splitting.
+    - **Issue #1158:** Keep `kickoff:` in templates to a single plain-text line without multiline block scalars.

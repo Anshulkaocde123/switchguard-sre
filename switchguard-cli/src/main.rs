@@ -6,7 +6,23 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static RE_BEARER: OnceLock<Regex> = OnceLock::new();
+static RE_SECRETS: OnceLock<Regex> = OnceLock::new();
+static RE_KV_SECRETS: OnceLock<Regex> = OnceLock::new();
+static RE_AWS: OnceLock<Regex> = OnceLock::new();
+static RE_PRIV_KEY: OnceLock<Regex> = OnceLock::new();
+static RE_CC: OnceLock<Regex> = OnceLock::new();
+static RE_EMAIL: OnceLock<Regex> = OnceLock::new();
+static RE_IPV4: OnceLock<Regex> = OnceLock::new();
+static RE_LINE: OnceLock<Regex> = OnceLock::new();
+static RE_FILE: OnceLock<Regex> = OnceLock::new();
+static RE_TIMESTAMP: OnceLock<Regex> = OnceLock::new();
+static RE_SHA: OnceLock<Regex> = OnceLock::new();
+static RE_CHAIN: OnceLock<Regex> = OnceLock::new();
+static RE_PREV: OnceLock<Regex> = OnceLock::new();
 
 #[cfg(unix)]
 use std::os::unix::io::AsRawFd;
@@ -115,42 +131,42 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     let mut total_redactions = 0;
 
     // 1. Redact Bearer tokens (e.g. Bearer secret123, Bearer eyJ...)
-    let re_bearer = Regex::new(r"Bearer\s+[A-Za-z0-9_\-\.]+").unwrap();
+    let re_bearer = RE_BEARER.get_or_init(|| Regex::new(r"Bearer\s+[A-Za-z0-9_\-\.]+").unwrap());
     let bearer_matches = re_bearer.find_iter(&text).count();
     total_redactions += bearer_matches;
     text = re_bearer.replace_all(&text, "Bearer [REDACTED_AUTH_TOKEN]").to_string();
 
     // 2. Redact Known Secret Keys (API keys, live tokens, password/secret params)
-    let re_secrets = Regex::new(r"\b(AIzaSy[A-Za-z0-9_\-]{33}|sk_live_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|tok_live_[A-Za-z0-9]+)\b").unwrap();
+    let re_secrets = RE_SECRETS.get_or_init(|| Regex::new(r"\b(AIzaSy[A-Za-z0-9_\-]{33}|sk_live_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|tok_live_[A-Za-z0-9]+)\b").unwrap());
     let secret_matches = re_secrets.find_iter(&text).count();
     total_redactions += secret_matches;
     text = re_secrets.replace_all(&text, "[REDACTED_SECRET]").to_string();
 
-    let re_kv_secrets = Regex::new(r"(?i)\b(password|secret|apikey|api_key)\s*[:=]\s*([^\s,;]+)").unwrap();
+    let re_kv_secrets = RE_KV_SECRETS.get_or_init(|| Regex::new(r"(?i)\b(password|secret|apikey|api_key)\s*[:=]\s*([^\s,;]+)").unwrap());
     let kv_matches = re_kv_secrets.find_iter(&text).count();
     total_redactions += kv_matches;
     text = re_kv_secrets.replace_all(&text, "$1=[REDACTED_SECRET]").to_string();
 
     // 3. Redact AWS Access Keys: AKIA[0-9A-Z]{16}
-    let re_aws = Regex::new(r"\bAKIA[0-9A-Z]{16}\b").unwrap();
+    let re_aws = RE_AWS.get_or_init(|| Regex::new(r"\bAKIA[0-9A-Z]{16}\b").unwrap());
     let aws_matches = re_aws.find_iter(&text).count();
     total_redactions += aws_matches;
     text = re_aws.replace_all(&text, "[REDACTED_AWS_KEY]").to_string();
 
     // 4. Redact Private Keys: -----BEGIN.*PRIVATE KEY-----
-    let re_priv_key = Regex::new(r"(?s)-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----.*?-----END[ A-Z0-9_-]*PRIVATE KEY-----|-----BEGIN[ A-Z0-9_-]*PRIVATE KEY[^\r\n]*").unwrap();
+    let re_priv_key = RE_PRIV_KEY.get_or_init(|| Regex::new(r"(?s)-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----.*?-----END[ A-Z0-9_-]*PRIVATE KEY-----|-----BEGIN[ A-Z0-9_-]*PRIVATE KEY[^\r\n]*").unwrap());
     let priv_matches = re_priv_key.find_iter(&text).count();
     total_redactions += priv_matches;
     text = re_priv_key.replace_all(&text, "[REDACTED_PRIVATE_KEY]").to_string();
 
     // 5. Redact Credit Card / PAN patterns (e.g. 4532-xxxx-xxxx-xxxx, 16 digit PANs)
-    let re_cc = Regex::new(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|(?:[0-9]{4}[ -]?){3}[0-9]{4})\b").unwrap();
+    let re_cc = RE_CC.get_or_init(|| Regex::new(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|(?:[0-9]{4}[ -]?){3}[0-9]{4})\b").unwrap());
     let cc_matches = re_cc.find_iter(&text).count();
     total_redactions += cc_matches;
     text = re_cc.replace_all(&text, "[REDACTED_CREDIT_CARD]").to_string();
 
     // 6. Redact Email addresses with HMAC suffix (e.g. [REDACTED_EMAIL_8f3a1c])
-    let re_email = Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap();
+    let re_email = RE_EMAIL.get_or_init(|| Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap());
     let email_matches = re_email.find_iter(&text).count();
     total_redactions += email_matches;
     text = re_email.replace_all(&text, |caps: &regex::Captures| {
@@ -161,9 +177,9 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
 
     // 7. Redact IPv4 addresses with HMAC suffix (e.g. [REDACTED_IPV4_8f3a1c])
     // Protect version strings prefixed with 'v' or 'version' (e.g. v1.4.2.1, v1.4.2.0) from being redacted as IPv4.
-    let re_ipv4 = Regex::new(
+    let re_ipv4 = RE_IPV4.get_or_init(|| Regex::new(
         r"(?i)\b(?:version\s*|v[.\-_]?)\d+\.\d+\.\d+(?:\.\d+)?\b|(\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)"
-    ).unwrap();
+    ).unwrap());
 
     let mut ip_matches = 0;
     text = re_ipv4.replace_all(&text, |caps: &regex::Captures| {
@@ -180,8 +196,10 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     // Classification
     let classification = if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
         "NEGATIVE_TOTAL_CALCULATION".to_string()
-    } else if text.contains("ZeroDivisionError") || text.contains("SAVE20") || text.contains("division by zero") {
+    } else if text.contains("ZeroDivisionError") || text.contains("SAVE20") || text.contains("division by zero") || text.contains("bundle") || text.contains("proration") {
         "ZERO_DIVISION_ERROR".to_string()
+    } else if text.contains("Ignore previous") || text.contains("os.system") || text.contains("evil.sh") || text.contains("curl") || text.contains("INJECTION") {
+        "PROMPT_INJECTION_ATTEMPT".to_string()
     } else if text.contains("AssertionError") {
         "ASSERTION_FAILURE".to_string()
     } else {
@@ -194,7 +212,7 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
 
 fn extract_normalized_file_line(text: &str) -> String {
     // 1. Look for patterns like "cart_service.py line 5", "cart_service.py:5", 'File "cart_service.py", line 5'
-    let re_line = Regex::new(r#"(?i)(?:File\s+["']?|in\s+)?([a-zA-Z0-9_\-\.]+\.py)["']?(?:[^\d\n]*line\s*|:|\s*\(\s*line\s*)(\d+)"#).unwrap();
+    let re_line = RE_LINE.get_or_init(|| Regex::new(r#"(?i)(?:File\s+["']?|in\s+)?([a-zA-Z0-9_\-\.]+\.py)["']?(?:[^\d\n]*line\s*|:|\s*\(\s*line\s*)(\d+)"#).unwrap());
     if let Some(caps) = re_line.captures(text) {
         let file = caps.get(1).map_or("", |m| m.as_str());
         let line = caps.get(2).map_or("", |m| m.as_str());
@@ -203,7 +221,7 @@ fn extract_normalized_file_line(text: &str) -> String {
     }
 
     // 2. Look for just filename.py
-    let re_file = Regex::new(r#"(?i)([a-zA-Z0-9_\-\.]+\.py)"#).unwrap();
+    let re_file = RE_FILE.get_or_init(|| Regex::new(r#"(?i)([a-zA-Z0-9_\-\.]+\.py)"#).unwrap());
     if let Some(caps) = re_file.captures(text) {
         let file = caps.get(1).map_or("", |m| m.as_str());
         let filename = Path::new(file).file_name().and_then(|s| s.to_str()).unwrap_or(file);
@@ -213,7 +231,11 @@ fn extract_normalized_file_line(text: &str) -> String {
     // 3. Known domain mappings
     if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
         "cart_service.py:5".to_string()
-    } else if text.contains("ZeroDivisionError") || text.contains("SAVE20") {
+    } else if text.contains("ZeroDivisionError") || text.contains("bundle") || text.contains("proration") {
+        "cart_service.py:28".to_string()
+    } else if text.contains("Ignore previous") || text.contains("evil.sh") {
+        "cart_service.py:120".to_string()
+    } else if text.contains("SAVE20") {
         "pricing.py:12".to_string()
     } else {
         "unknown:0".to_string()
@@ -224,24 +246,15 @@ fn resolve_dedup_index_path() -> PathBuf {
     if let Ok(val) = env::var("SWITCHGUARD_DEDUP_INDEX") {
         return PathBuf::from(val);
     }
-
-    let candidates = [
-        "workspace/telemetry/dedup_index.json",
-        "../telemetry/dedup_index.json",
-        "./dedup_index.json",
-        "/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json",
-    ];
-
-    for candidate in &candidates {
-        let p = Path::new(candidate);
-        if let Some(parent) = p.parent() {
-            if parent.exists() {
-                return p.to_path_buf();
-            }
-        }
+    let p1 = Path::new("workspace/telemetry/dedup_index.json");
+    if p1.exists() {
+        return p1.to_path_buf();
     }
-
-    PathBuf::from("/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json")
+    let p2 = Path::new("/home/anshul-jain/switchguard-sre/workspace/telemetry/dedup_index.json");
+    if p2.exists() {
+        return p2.to_path_buf();
+    }
+    p1.to_path_buf()
 }
 
 fn record_or_check_dedup(
@@ -319,11 +332,8 @@ fn record_or_check_dedup(
         ("FIRST_SEEN".to_string(), 1)
     };
 
-    if let Ok(json_str) = serde_json::to_string_pretty(&index) {
-        let tmp_path = index_path.with_extension("tmp");
-        if fs::write(&tmp_path, json_str).is_ok() {
-            let _ = fs::rename(&tmp_path, &index_path);
-        }
+    if let Ok(json_str) = serde_json::to_string(&index) {
+        let _ = fs::write(&index_path, json_str);
     }
 
     #[cfg(unix)]
@@ -665,10 +675,10 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
     let mut current_chain_hash = genesis.to_string();
     let mut verified_count = 0;
 
-    let re_timestamp = Regex::new(r"\[([^\]]+)\]").unwrap();
-    let re_sha = Regex::new(r"\bSHA256=([0-9a-fA-F]{64})\b").unwrap();
-    let re_chain = Regex::new(r"\bCHAIN_HASH=([0-9a-fA-F]{64})\b").unwrap();
-    let re_prev = Regex::new(r"\bPREV_HASH=([0-9a-fA-F]{64})\b").unwrap();
+    let re_timestamp = RE_TIMESTAMP.get_or_init(|| Regex::new(r"\[([^\]]+)\]").unwrap());
+    let re_sha = RE_SHA.get_or_init(|| Regex::new(r"\bSHA256=([0-9a-fA-F]{64})\b").unwrap());
+    let re_chain = RE_CHAIN.get_or_init(|| Regex::new(r"\bCHAIN_HASH=([0-9a-fA-F]{64})\b").unwrap());
+    let re_prev = RE_PREV.get_or_init(|| Regex::new(r"\bPREV_HASH=([0-9a-fA-F]{64})\b").unwrap());
 
     for (idx, line) in contents.lines().enumerate() {
         let trimmed = line.trim();

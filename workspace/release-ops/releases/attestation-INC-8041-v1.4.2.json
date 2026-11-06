@@ -1,10 +1,10 @@
 {
   "incident_id": "INC-8041",
   "version": "v1.4.2",
-  "timestamp": "2026-11-05T17:18:54.381336+00:00",
-  "binary_sha256": "894e0ed5cb855575580c5f7f3cb5a1af594723956b945f779639b77894939041",
-  "patch_sha256": "f3e20f7228262677470cc84762a1f88a886b04e1ff090fb927ee4ab6c1993b7f",
-  "chain_hash": "e0a0c7599fb3bb0cab4d65e623fa163ae11a9d31282e9be3ca793892d59788f9",
+  "timestamp": "2026-11-06T05:12:19.859440+00:00",
+  "binary_sha256": "5b87febc5aec6002de77966606964c4ce0e61177371cc88020a813c449150f5b",
+  "patch_sha256": "0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28",
+  "chain_hash": "e99c4a55a19b9014b855c9eda7ecd3e972391e73322fb5e8fb73600f792a33f4",
   "ast_rules_checked": 10,
   "human_gate_verified": true
 }
