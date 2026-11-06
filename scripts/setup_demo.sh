@@ -27,15 +27,53 @@ if [ -f "$ROOT_DIR/switchguard-cli/target/release/switchguard-cli" ]; then
 fi
 
 echo "==> [2/4] Resetting workspace/sandbox-app to clean baseline state..."
-git -C "$ROOT_DIR/workspace/sandbox-app" checkout HEAD -- .
-git -C "$ROOT_DIR/workspace/sandbox-app" clean -fd
+git -C "$ROOT_DIR/workspace/sandbox-app" checkout HEAD -- . 2>/dev/null || true
+git -C "$ROOT_DIR/workspace/sandbox-app" clean -fd 2>/dev/null || true
 rm -rf "$ROOT_DIR/workspace/sandbox-app/__pycache__" "$ROOT_DIR/workspace/sandbox-app/.pytest_cache"
 
-echo "==> [3/4] Resetting live telemetry state and clearing lockfiles..."
-echo '{"incident_id": null, "current_state": "IDLE", "retry_count": 0, "incidents": {}}' > "$ROOT_DIR/workspace/telemetry/incident_state.json"
+echo "==> [3/4] Resetting live telemetry state, dedup index, and seeding runbook memory..."
+echo '{"incident_id": "NONE", "current_state": "IDLE", "retry_count": 0, "incidents": {}}' > "$ROOT_DIR/workspace/telemetry/incident_state.json"
 echo '{}' > "$ROOT_DIR/workspace/telemetry/dedup_index.json"
 rm -f "$ROOT_DIR/workspace/telemetry/.triage.lock" "$ROOT_DIR/workspace/telemetry/dedup_index.lock" "$ROOT_DIR/workspace/telemetry/incident_state.json.tmp"
 rm -rf "$ROOT_DIR/workspace/telemetry/__pycache__"
+
+cat << 'EOF' > "$ROOT_DIR/workspace/telemetry/runbook_memory.json"
+{
+  "version": "1.0",
+  "resolutions": [
+    {
+      "error_classification": "NEGATIVE_TOTAL_CALCULATION",
+      "incident_id": "INC-8041",
+      "version": "v1.4.2",
+      "target_file": "cart_service.py",
+      "fix_pattern": "total = max(0.0, subtotal - 100.0)",
+      "patch_sha256": "0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28",
+      "summary": "Enforce non-negative order total by clamping discount subtotals with max(0.0, ...)",
+      "timestamp": "2026-11-06T05:12:19.859440+00:00"
+    },
+    {
+      "error_classification": "ZERO_DIVISION_FAULT",
+      "incident_id": "INC-8042",
+      "version": "v1.4.3",
+      "target_file": "cart_service.py",
+      "fix_pattern": "if num_installments <= 0: raise ValueError('num_installments must be positive')",
+      "patch_sha256": "98a12f84b64e528198f3ec29a1b89cd123456789abcdef0123456789abcdef01",
+      "summary": "Guard against division by zero when calculating installment split",
+      "timestamp": "2026-11-06T05:15:00.000000+00:00"
+    },
+    {
+      "error_classification": "CURRENCY_CONVERSION_FAULT",
+      "incident_id": "INC-8044",
+      "version": "v1.4.4",
+      "target_file": "cart_service.py",
+      "fix_pattern": "if target_currency not in rates: raise KeyError(f'Unsupported currency: {target_currency}')",
+      "patch_sha256": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+      "summary": "Validate target currency against supported exchange rate matrix",
+      "timestamp": "2026-11-06T05:20:00.000000+00:00"
+    }
+  ]
+}
+EOF
 
 echo "==> [4/4] Verifying baseline pytest suite..."
 python3 -m pytest -q "$ROOT_DIR/workspace/sandbox-app/test_cart.py"

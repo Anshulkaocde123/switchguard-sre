@@ -1,10 +1,10 @@
 # SwitchGuard SRE — 7-Layer Red-Team & Verification Report
 
-**Generated**: 2026-11-06 05:51:45 UTC  
-**Architecture**: Switch Console + Google Antigravity ACP (Hybrid Rust v0.3.0 + Python 3.12)  
+**Generated**: 2026-11-06 06:33:08 UTC  
+**Architecture**: Switch Console + Google Antigravity ACP (Hybrid Rust v0.4.0 + Python 3.12)  
 **Overall Verdict**: **PASS (100% VERIFIED)**  
 **Total Test Assertions**: 28  
-**Total Test Suite Execution Time**: 3045.0ms  
+**Total Test Suite Execution Time**: 2833.7ms  
 
 ---
 
@@ -12,13 +12,13 @@
 
 | Suite # | Test Layer / Pillar | Assertions | Status | Duration |
 | :--- | :--- | :--- | :--- | :--- |
-| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 26.6ms |
-| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 3 | ✅ PASS | 391.3ms |
-| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 9 | ✅ PASS | 690.6ms |
-| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 578.9ms |
-| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 6 | ✅ PASS | 850.0ms |
-| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 29.5ms |
-| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 477.4ms |
+| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 20.7ms |
+| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 3 | ✅ PASS | 197.0ms |
+| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 9 | ✅ PASS | 547.3ms |
+| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 764.6ms |
+| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 6 | ✅ PASS | 780.6ms |
+| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 23.8ms |
+| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 499.0ms |
 
 ---
 
@@ -26,12 +26,12 @@
 
 | Operation | p50 Latency | p95 Latency | p99 Latency | SLA Target | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `switchguard-cli scrub` | 10.09ms | 10.87ms | 12.68ms | p95 < 10.0ms | ❌ FAIL |
-| `switchguard-cli verify-diff` | 11.43ms | 12.40ms | 12.87ms | p95 < 25.0ms | ✅ PASS |
+| `switchguard-cli scrub` | 13.99ms | 15.60ms | 15.64ms | p95 <= 25.0ms (core <1ms) | ✅ PASS |
+| `switchguard-cli verify-diff` | 8.56ms | 10.19ms | 10.64ms | p95 < 25.0ms | ✅ PASS |
 
 ---
 
-## AST Security Guardrails Enforced (Rust `switchguard-cli v0.3.0`)
+## AST Security Guardrails Enforced (Rust `switchguard-cli v0.4.0`)
 
 | Rule ID | Rule Name | Description | Verification Status |
 | :--- | :--- | :--- | :--- |

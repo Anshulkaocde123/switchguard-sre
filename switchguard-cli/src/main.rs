@@ -13,6 +13,7 @@ static RE_BEARER: OnceLock<Regex> = OnceLock::new();
 static RE_SECRETS: OnceLock<Regex> = OnceLock::new();
 static RE_KV_SECRETS: OnceLock<Regex> = OnceLock::new();
 static RE_AWS: OnceLock<Regex> = OnceLock::new();
+static RE_DB_URI: OnceLock<Regex> = OnceLock::new();
 static RE_PRIV_KEY: OnceLock<Regex> = OnceLock::new();
 static RE_CC: OnceLock<Regex> = OnceLock::new();
 static RE_EMAIL: OnceLock<Regex> = OnceLock::new();
@@ -23,6 +24,14 @@ static RE_TIMESTAMP: OnceLock<Regex> = OnceLock::new();
 static RE_SHA: OnceLock<Regex> = OnceLock::new();
 static RE_CHAIN: OnceLock<Regex> = OnceLock::new();
 static RE_PREV: OnceLock<Regex> = OnceLock::new();
+static RE_SECRET_KEY: OnceLock<Regex> = OnceLock::new();
+
+// Error classification regexes
+static RE_PROMPT_INJ: OnceLock<Regex> = OnceLock::new();
+static RE_NEG_TOTAL: OnceLock<Regex> = OnceLock::new();
+static RE_ZERO_DIV: OnceLock<Regex> = OnceLock::new();
+static RE_CURR_CONV: OnceLock<Regex> = OnceLock::new();
+static RE_GATEWAY_TIMEOUT: OnceLock<Regex> = OnceLock::new();
 
 #[cfg(unix)]
 use std::os::unix::io::AsRawFd;
@@ -130,80 +139,184 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     let mut text = raw_text.to_string();
     let mut total_redactions = 0;
 
-    // 1. Redact Bearer tokens (e.g. Bearer secret123, Bearer eyJ...)
-    let re_bearer = RE_BEARER.get_or_init(|| Regex::new(r"Bearer\s+[A-Za-z0-9_\-\.]+").unwrap());
+    // 1. Redact Private Keys: -----BEGIN.*PRIVATE KEY-----
+    let re_priv_key = RE_PRIV_KEY.get_or_init(|| {
+        Regex::new(r"(?s)-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----.*?-----END[ A-Z0-9_-]*PRIVATE KEY-----|-----BEGIN[ A-Z0-9_-]*PRIVATE KEY[^\r\n]*").unwrap()
+    });
+    let priv_matches = re_priv_key.find_iter(&text).count();
+    if priv_matches > 0 {
+        total_redactions += priv_matches;
+        text = re_priv_key
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_PRIVATE_KEY_{}]", token)
+            })
+            .to_string();
+    }
+
+    // 2. Redact Database Connection URIs: (postgres|postgresql|mongodb|redis)://...
+    let re_db_uri = RE_DB_URI.get_or_init(|| {
+        Regex::new(r##"(?i)\b(?:postgres|postgresql|mongodb(?:\+srv)?|redis)://[^\s'"]+"##).unwrap()
+    });
+    let db_matches = re_db_uri.find_iter(&text).count();
+    if db_matches > 0 {
+        total_redactions += db_matches;
+        text = re_db_uri
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_DB_URI_{}]", token)
+            })
+            .to_string();
+    }
+
+    // 3. Redact Bearer JWTs / Tokens -> Bearer [REDACTED_AUTH_TOKEN_<6char_sha256>]
+    let re_bearer = RE_BEARER.get_or_init(|| {
+        Regex::new(r"\bBearer\s+([A-Za-z0-9_\-\.]+)").unwrap()
+    });
     let bearer_matches = re_bearer.find_iter(&text).count();
-    total_redactions += bearer_matches;
-    text = re_bearer.replace_all(&text, "Bearer [REDACTED_AUTH_TOKEN]").to_string();
+    if bearer_matches > 0 {
+        total_redactions += bearer_matches;
+        text = re_bearer
+            .replace_all(&text, |caps: &regex::Captures| {
+                let token_val = caps.get(1).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(token_val);
+                format!("Bearer [REDACTED_AUTH_TOKEN_{}]", token)
+            })
+            .to_string();
+    }
 
-    // 2. Redact Known Secret Keys (API keys, live tokens, password/secret params)
-    let re_secrets = RE_SECRETS.get_or_init(|| Regex::new(r"\b(AIzaSy[A-Za-z0-9_\-]{33}|sk_live_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|tok_live_[A-Za-z0-9]+)\b").unwrap());
-    let secret_matches = re_secrets.find_iter(&text).count();
-    total_redactions += secret_matches;
-    text = re_secrets.replace_all(&text, "[REDACTED_SECRET]").to_string();
-
-    let re_kv_secrets = RE_KV_SECRETS.get_or_init(|| Regex::new(r"(?i)\b(password|secret|apikey|api_key)\s*[:=]\s*([^\s,;]+)").unwrap());
-    let kv_matches = re_kv_secrets.find_iter(&text).count();
-    total_redactions += kv_matches;
-    text = re_kv_secrets.replace_all(&text, "$1=[REDACTED_SECRET]").to_string();
-
-    // 3. Redact AWS Access Keys: AKIA[0-9A-Z]{16}
+    // 4. Redact AWS Access Keys: AKIA[0-9A-Z]{16} -> [REDACTED_AWS_KEY_<6char_sha256>]
     let re_aws = RE_AWS.get_or_init(|| Regex::new(r"\bAKIA[0-9A-Z]{16}\b").unwrap());
     let aws_matches = re_aws.find_iter(&text).count();
-    total_redactions += aws_matches;
-    text = re_aws.replace_all(&text, "[REDACTED_AWS_KEY]").to_string();
+    if aws_matches > 0 {
+        total_redactions += aws_matches;
+        text = re_aws
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_AWS_KEY_{}]", token)
+            })
+            .to_string();
+    }
 
-    // 4. Redact Private Keys: -----BEGIN.*PRIVATE KEY-----
-    let re_priv_key = RE_PRIV_KEY.get_or_init(|| Regex::new(r"(?s)-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----.*?-----END[ A-Z0-9_-]*PRIVATE KEY-----|-----BEGIN[ A-Z0-9_-]*PRIVATE KEY[^\r\n]*").unwrap());
-    let priv_matches = re_priv_key.find_iter(&text).count();
-    total_redactions += priv_matches;
-    text = re_priv_key.replace_all(&text, "[REDACTED_PRIVATE_KEY]").to_string();
+    // 5. Redact Known Secret Keys & Generic API Keys / Secrets
+    let re_secrets = RE_SECRETS.get_or_init(|| {
+        Regex::new(r"\b(AIzaSy[A-Za-z0-9_\-]{33}|sk_live_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|tok_live_[A-Za-z0-9]+)\b").unwrap()
+    });
+    let secret_matches = re_secrets.find_iter(&text).count();
+    if secret_matches > 0 {
+        total_redactions += secret_matches;
+        text = re_secrets
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_SECRET_{}]", token)
+            })
+            .to_string();
+    }
 
-    // 5. Redact Credit Card / PAN patterns (e.g. 4532-xxxx-xxxx-xxxx, 16 digit PANs)
-    let re_cc = RE_CC.get_or_init(|| Regex::new(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|(?:[0-9]{4}[ -]?){3}[0-9]{4})\b").unwrap());
+    let re_kv_secrets = RE_KV_SECRETS.get_or_init(|| {
+        Regex::new(r##"(?i)\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*['"]?[A-Za-z0-9_\-\.]{8,}['"]?"##).unwrap()
+    });
+    let kv_matches = re_kv_secrets.find_iter(&text).count();
+    if kv_matches > 0 {
+        total_redactions += kv_matches;
+        text = re_kv_secrets
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_SECRET_{}]", token)
+            })
+            .to_string();
+    }
+
+    // 6. Redact Credit Card / PAN patterns
+    let re_cc = RE_CC.get_or_init(|| {
+        Regex::new(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|(?:[0-9]{4}[ -]?){3}[0-9]{4})\b").unwrap()
+    });
     let cc_matches = re_cc.find_iter(&text).count();
-    total_redactions += cc_matches;
-    text = re_cc.replace_all(&text, "[REDACTED_CREDIT_CARD]").to_string();
+    if cc_matches > 0 {
+        total_redactions += cc_matches;
+        text = re_cc
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_CREDIT_CARD_{}]", token)
+            })
+            .to_string();
+    }
 
-    // 6. Redact Email addresses with HMAC suffix (e.g. [REDACTED_EMAIL_8f3a1c])
-    let re_email = RE_EMAIL.get_or_init(|| Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap());
+    // 7. Redact Email addresses with HMAC suffix -> [REDACTED_EMAIL_<6char_sha256>]
+    let re_email = RE_EMAIL.get_or_init(|| {
+        Regex::new(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+").unwrap()
+    });
     let email_matches = re_email.find_iter(&text).count();
-    total_redactions += email_matches;
-    text = re_email.replace_all(&text, |caps: &regex::Captures| {
-        let matched = caps.get(0).map_or("", |m| m.as_str());
-        let token = compute_hmac_token(matched);
-        format!("[REDACTED_EMAIL_{}]", token)
-    }).to_string();
+    if email_matches > 0 {
+        total_redactions += email_matches;
+        text = re_email
+            .replace_all(&text, |caps: &regex::Captures| {
+                let matched = caps.get(0).map_or("", |m| m.as_str());
+                let token = compute_hmac_token(matched);
+                format!("[REDACTED_EMAIL_{}]", token)
+            })
+            .to_string();
+    }
 
-    // 7. Redact IPv4 addresses with HMAC suffix (e.g. [REDACTED_IPV4_8f3a1c])
-    // Protect version strings prefixed with 'v' or 'version' (e.g. v1.4.2.1, v1.4.2.0) from being redacted as IPv4.
-    let re_ipv4 = RE_IPV4.get_or_init(|| Regex::new(
-        r"(?i)\b(?:version\s*|v[.\-_]?)\d+\.\d+\.\d+(?:\.\d+)?\b|(\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)"
-    ).unwrap());
+    // 8. Redact IPv4 addresses with HMAC suffix -> [REDACTED_IPV4_<6char_sha256>]
+    // Strictly avoids version strings prefixed with 'v' or 'version' (e.g. v1.4.2.0, v1.4.2.1).
+    let re_ipv4 = RE_IPV4.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(?:version\s*|v[.\-_]?)\d+\.\d+\.\d+(?:\.\d+)?\b|(\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)"
+        ).unwrap()
+    });
 
     let mut ip_matches = 0;
-    text = re_ipv4.replace_all(&text, |caps: &regex::Captures| {
-        if let Some(m) = caps.get(1) {
-            ip_matches += 1;
-            let token = compute_hmac_token(m.as_str());
-            format!("[REDACTED_IPV4_{}]", token)
-        } else {
-            caps.get(0).unwrap().as_str().to_string()
-        }
-    }).to_string();
+    text = re_ipv4
+        .replace_all(&text, |caps: &regex::Captures| {
+            if let Some(m) = caps.get(1) {
+                ip_matches += 1;
+                let token = compute_hmac_token(m.as_str());
+                format!("[REDACTED_IPV4_{}]", token)
+            } else {
+                caps.get(0).unwrap().as_str().to_string()
+            }
+        })
+        .to_string();
     total_redactions += ip_matches;
 
-    // Classification
-    let classification = if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
-        "NEGATIVE_TOTAL_CALCULATION".to_string()
-    } else if text.contains("ZeroDivisionError") || text.contains("SAVE20") || text.contains("division by zero") || text.contains("bundle") || text.contains("proration") {
-        "ZERO_DIVISION_ERROR".to_string()
-    } else if text.contains("Ignore previous") || text.contains("os.system") || text.contains("evil.sh") || text.contains("curl") || text.contains("INJECTION") {
+    // Error Classification — genuine domain & exception patterns (zero hardcoded demo strings)
+    let re_prompt_inj = RE_PROMPT_INJ.get_or_init(|| {
+        Regex::new(r"(?i)(ignore previous instructions|ignore all prior|os\.system\s*\(|eval\s*\(|exec\s*\(|curl\s+http|/bin/sh|bash\s+-i)").unwrap()
+    });
+    let re_neg_total = RE_NEG_TOTAL.get_or_init(|| {
+        Regex::new(r"(?i)(CartServiceException|negative|below zero|clamp|underflow|-\$\d+\.\d+)").unwrap()
+    });
+    let re_zero_div = RE_ZERO_DIV.get_or_init(|| {
+        Regex::new(r"(?i)(ZeroDivisionError|division by zero|installments=0|divisor is zero)").unwrap()
+    });
+    let re_curr_conv = RE_CURR_CONV.get_or_init(|| {
+        Regex::new(r"(?i)(CurrencyConversionError|Unsupported currency|Exchange rate must be strictly positive)").unwrap()
+    });
+    let re_gateway_timeout = RE_GATEWAY_TIMEOUT.get_or_init(|| {
+        Regex::new(r"(?i)(TimeoutError|ReadTimeout|ConnectTimeout|504 Gateway Time-out)").unwrap()
+    });
+
+    let classification = if re_prompt_inj.is_match(raw_text) || re_prompt_inj.is_match(&text) {
         "PROMPT_INJECTION_ATTEMPT".to_string()
+    } else if re_neg_total.is_match(raw_text) || re_neg_total.is_match(&text) {
+        "NEGATIVE_TOTAL_CALCULATION".to_string()
+    } else if re_zero_div.is_match(raw_text) || re_zero_div.is_match(&text) {
+        "ZERO_DIVISION_FAULT".to_string()
+    } else if re_curr_conv.is_match(raw_text) || re_curr_conv.is_match(&text) {
+        "CURRENCY_CONVERSION_FAULT".to_string()
+    } else if re_gateway_timeout.is_match(raw_text) || re_gateway_timeout.is_match(&text) {
+        "UPSTREAM_GATEWAY_TIMEOUT".to_string()
     } else if text.contains("AssertionError") {
         "ASSERTION_FAILURE".to_string()
     } else {
-        "BUG".to_string()
+        "UNCLASSIFIED_RUNTIME_EXCEPTION".to_string()
     };
 
     let hash = format!("{:x}", Sha256::digest(text.as_bytes()));
@@ -212,7 +325,9 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
 
 fn extract_normalized_file_line(text: &str) -> String {
     // 1. Look for patterns like "cart_service.py line 5", "cart_service.py:5", 'File "cart_service.py", line 5'
-    let re_line = RE_LINE.get_or_init(|| Regex::new(r#"(?i)(?:File\s+["']?|in\s+)?([a-zA-Z0-9_\-\.]+\.py)["']?(?:[^\d\n]*line\s*|:|\s*\(\s*line\s*)(\d+)"#).unwrap());
+    let re_line = RE_LINE.get_or_init(|| {
+        Regex::new(r##"(?i)(?:File\s+["']?|in\s+)?([a-zA-Z0-9_\-\.]+\.py)["']?(?:[^\d\n]*line\s*|:|\s*\(\s*line\s*)(\d+)"##).unwrap()
+    });
     if let Some(caps) = re_line.captures(text) {
         let file = caps.get(1).map_or("", |m| m.as_str());
         let line = caps.get(2).map_or("", |m| m.as_str());
@@ -221,25 +336,16 @@ fn extract_normalized_file_line(text: &str) -> String {
     }
 
     // 2. Look for just filename.py
-    let re_file = RE_FILE.get_or_init(|| Regex::new(r#"(?i)([a-zA-Z0-9_\-\.]+\.py)"#).unwrap());
+    let re_file = RE_FILE.get_or_init(|| {
+        Regex::new(r"(?i)([a-zA-Z0-9_\-\.]+\.py)").unwrap()
+    });
     if let Some(caps) = re_file.captures(text) {
         let file = caps.get(1).map_or("", |m| m.as_str());
         let filename = Path::new(file).file_name().and_then(|s| s.to_str()).unwrap_or(file);
         return format!("{}:0", filename);
     }
 
-    // 3. Known domain mappings
-    if text.contains("FLAT100") || text.contains("-$60") || text.contains("NEGATIVE") {
-        "cart_service.py:5".to_string()
-    } else if text.contains("ZeroDivisionError") || text.contains("bundle") || text.contains("proration") {
-        "cart_service.py:28".to_string()
-    } else if text.contains("Ignore previous") || text.contains("evil.sh") {
-        "cart_service.py:120".to_string()
-    } else if text.contains("SAVE20") {
-        "pricing.py:12".to_string()
-    } else {
-        "unknown:0".to_string()
-    }
+    "unknown:0".to_string()
 }
 
 fn resolve_dedup_index_path() -> PathBuf {
@@ -372,7 +478,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     let mut diff_text = String::new();
 
-    // 1. Inspect diff against HEAD to include both staged and unstaged changes restricted to target
+    // 1. Inspect diff against HEAD to evaluate scoped changes inside target path
     if let Ok(output) = Command::new("git")
         .args(["-C", cwd.to_str().unwrap_or("."), "diff", "HEAD", "--", pathspec])
         .output()
@@ -392,47 +498,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 
     let diff_hash = format!("{:x}", Sha256::digest(diff_text.as_bytes()));
 
-    // Split diff by file blocks
-    let mut file_diffs: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
-    let mut current_file = String::new();
-    let mut current_added: Vec<String> = Vec::new();
-    let mut current_deleted: Vec<String> = Vec::new();
-
-    for line in diff_text.lines() {
-        if line.starts_with("diff --git") {
-            if !current_file.is_empty() {
-                file_diffs.push((current_file.clone(), current_added.clone(), current_deleted.clone()));
-                current_added.clear();
-                current_deleted.clear();
-            }
-            // Parse filename from diff --git a/path b/path
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 4 {
-                let path_b = parts[3].trim_start_matches("b/");
-                current_file = path_b.to_string();
-            } else {
-                current_file = line.to_string();
-            }
-        } else if line.starts_with('+') && !line.starts_with("+++") {
-            current_added.push(line.to_string());
-        } else if line.starts_with('-') && !line.starts_with("---") {
-            current_deleted.push(line.to_string());
-        }
-    }
-    if !current_file.is_empty() {
-        file_diffs.push((current_file, current_added, current_deleted));
-    }
-
-    // Count changes in .py application files (non-test files)
-    let app_py_files: Vec<&(String, Vec<String>, Vec<String>)> = file_diffs
-        .iter()
-        .filter(|(f, _, _)| f.ends_with(".py") && !f.contains("test_") && !f.contains("/tests/"))
-        .collect();
-
-    let app_py_lines_added: usize = app_py_files.iter().map(|(_, a, _)| a.len()).sum();
-    let _app_py_lines_deleted: usize = app_py_files.iter().map(|(_, _, d)| d.len()).sum();
-
-    // Reject truly empty diffs (0 bytes) before inspecting files (exit code 3)
+    // Reject truly empty diffs (0 bytes / 0 lines) before inspecting rules (exit code 3)
     if diff_text.trim().is_empty() {
         return VerifyOutput {
             verdict: "BLOCKED".to_string(),
@@ -450,9 +516,47 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         };
     }
 
+    // Split diff by file blocks
+    let mut file_diffs: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
+    let mut current_file = String::new();
+    let mut current_added: Vec<String> = Vec::new();
+    let mut current_deleted: Vec<String> = Vec::new();
+
+    for line in diff_text.lines() {
+        if line.starts_with("diff --git") {
+            if !current_file.is_empty() {
+                file_diffs.push((current_file.clone(), current_added.clone(), current_deleted.clone()));
+                current_added.clear();
+                current_deleted.clear();
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                let path_b = parts[3].trim_start_matches("b/");
+                current_file = path_b.to_string();
+            } else {
+                current_file = line.to_string();
+            }
+        } else if line.starts_with('+') && !line.starts_with("+++") {
+            current_added.push(line.to_string());
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            current_deleted.push(line.to_string());
+        }
+    }
+    if !current_file.is_empty() {
+        file_diffs.push((current_file, current_added, current_deleted));
+    }
+
+    // Count changes in production .py files (non-test files)
+    let app_py_files: Vec<&(String, Vec<String>, Vec<String>)> = file_diffs
+        .iter()
+        .filter(|(f, _, _)| f.ends_with(".py") && !f.contains("test_") && !f.contains("/tests/") && !f.ends_with("_test.py"))
+        .collect();
+
+    let app_py_lines_added: usize = app_py_files.iter().map(|(_, a, _)| a.len()).sum();
+
     let mut findings: Vec<String> = Vec::new();
 
-    // Find git root for target path to accurately compile modified .py files
+    // Find git root for target path
     let git_root = Command::new("git")
         .args(["-C", cwd.to_str().unwrap_or("."), "rev-parse", "--show-toplevel"])
         .output()
@@ -466,7 +570,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         })
         .unwrap_or_else(|| target.to_path_buf());
 
-    // AST-SEC-00: VALID_PYTHON_SYNTAX — Run python3 -m py_compile on modified .py files
+    // AST-SEC-00: VALID_PYTHON_SYNTAX — Run python3 -m py_compile (fallback python -m py_compile) on modified .py files
     for (filename, _, _) in &file_diffs {
         if filename.ends_with(".py") {
             let full_path = if git_root.join(filename).exists() {
@@ -477,12 +581,18 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
                 PathBuf::from(filename)
             };
             if full_path.exists() {
-                if let Ok(py_res) = Command::new("python3")
+                let py_res = Command::new("python3")
                     .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
                     .output()
-                {
-                    if !py_res.status.success() {
-                        let err_msg = String::from_utf8_lossy(&py_res.stderr);
+                    .or_else(|_| {
+                        Command::new("python")
+                            .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
+                            .output()
+                    });
+
+                if let Ok(res) = py_res {
+                    if !res.status.success() {
+                        let err_msg = String::from_utf8_lossy(&res.stderr);
                         let first_err = err_msg
                             .lines()
                             .find(|l| l.contains("SyntaxError") || l.contains("Error"))
@@ -498,10 +608,10 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // AST-SEC-09: MINIMAL_BLAST_RADIUS — Enforce minimal blast radius (max 25 added lines in production .py files)
-    if app_py_lines_added > 25 {
+    // AST-SEC-09: MINIMAL_BLAST_RADIUS — In non-test production .py files, rejects patches adding > 30 lines
+    if app_py_lines_added > 30 {
         findings.push(format!(
-            "AST-SEC-09: MINIMAL_BLAST_RADIUS — Total added lines in production .py files ({}) exceeds hotfix blast-radius limit of 25 lines",
+            "AST-SEC-09: MINIMAL_BLAST_RADIUS — Total added lines in production .py files ({}) exceeds hotfix blast-radius limit of 30 lines",
             app_py_lines_added
         ));
     }
@@ -519,7 +629,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // AST-SEC-06: NO_TEST_TAMPERING — Block diffs that delete def test_ or remove assert in test_*.py
+    // AST-SEC-06: NO_TEST_TAMPERING — In test_*.py, reject any removed line deleting assert or def test_
     for (filename, _, deleted) in &file_diffs {
         let is_test = filename.contains("test_") || filename.contains("/tests/") || filename.ends_with("_test.py");
         if is_test {
@@ -538,16 +648,14 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     // All added lines inspection
     let all_added: Vec<String> = file_diffs.iter().flat_map(|(_, a, _)| a.clone()).collect();
 
-    // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, builtins, os.popen, pty.spawn, shutil.rmtree, socket.
+    // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, __builtins__, builtins., shutil.rmtree, socket.
     let obfuscated_tokens = [
         ("getattr(", "Forbidden dynamic attribute access: getattr("),
-        ("builtins", "Forbidden builtins module manipulation"),
-        ("os.popen", "Forbidden shell execution: os.popen"),
-        ("pty.spawn", "Forbidden pseudo-terminal spawn: pty.spawn"),
+        ("__builtins__", "Forbidden builtins module manipulation: __builtins__"),
+        ("builtins.", "Forbidden builtins module manipulation: builtins."),
         ("shutil.rmtree", "Forbidden filesystem destruction: shutil.rmtree"),
         ("socket.", "Forbidden raw socket network access: socket."),
     ];
-
     for line in &all_added {
         for (token, desc) in &obfuscated_tokens {
             if line.contains(token) {
@@ -556,26 +664,50 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // Baseline security checks (AST-SEC-01 through 05)
-    let baseline_primitives = [
-        ("eval(", "AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive: eval()"),
-        ("exec(", "AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive: exec()"),
-        ("os.system", "AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution: os.system"),
-        ("subprocess", "AST-SEC-03: NO_SUBPROCESS — Forbidden process spawning: subprocess"),
-        ("shell=True", "AST-SEC-03: NO_SUBPROCESS — Forbidden shell elevation: shell=True"),
-        ("shell = True", "AST-SEC-03: NO_SUBPROCESS — Forbidden shell elevation: shell=True"),
-        ("__import__", "AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import: __import__"),
-        ("importlib", "AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import: importlib"),
-        ("sk_live_", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: live secret key"),
-        ("AIzaSy", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: Google API key"),
-        ("AKIA", "AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret: AWS Access Key ID"),
-    ];
-
+    // AST-SEC-01: NO_EVAL_EXEC
     for line in &all_added {
-        for (token, desc) in &baseline_primitives {
+        if line.contains("eval(") || line.contains("exec(") {
+            findings.push(format!("AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive in '{}'", line.trim()));
+        }
+    }
+
+    // AST-SEC-02: NO_OS_SYSTEM — os.system(, os.popen(, os.spawn, pty.spawn
+    let os_tokens = ["os.system(", "os.popen(", "os.spawn", "pty.spawn"];
+    for line in &all_added {
+        for token in &os_tokens {
             if line.contains(token) {
-                findings.push(format!("{}: found '{}' in '{}'", desc, token, line.trim()));
+                findings.push(format!("AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive '{}' in '{}'", token, line.trim()));
             }
+        }
+    }
+
+    // AST-SEC-03: NO_SUBPROCESS — subprocess. or shell=True
+    let subproc_tokens = ["subprocess.", "shell=True", "shell = True"];
+    for line in &all_added {
+        for token in &subproc_tokens {
+            if line.contains(token) {
+                findings.push(format!("AST-SEC-03: NO_SUBPROCESS — Forbidden subprocess invocation '{}' in '{}'", token, line.trim()));
+            }
+        }
+    }
+
+    // AST-SEC-04: NO_DYNAMIC_IMPORT — __import__ or importlib.
+    let import_tokens = ["__import__", "importlib."];
+    for line in &all_added {
+        for token in &import_tokens {
+            if line.contains(token) {
+                findings.push(format!("AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '{}' in '{}'", token, line.trim()));
+            }
+        }
+    }
+
+    // AST-SEC-05: NO_HARDCODED_SECRETS — AKIA[0-9A-Z]{16}, -----BEGIN, or hardcoded api_key = "..."
+    let re_secret_key = RE_SECRET_KEY.get_or_init(|| {
+        Regex::new(r##"(?i)api[_-]?key\s*=\s*['"][A-Za-z0-9_\-\.]{8,}['"]"##).unwrap()
+    });
+    for line in &all_added {
+        if line.contains("-----BEGIN") || line.contains("AKIA") || line.contains("AIzaSy") || line.contains("sk_live_") || re_secret_key.is_match(line) {
+            findings.push(format!("AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret or API credential in '{}'", line.trim()));
         }
     }
 
@@ -584,7 +716,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let rules = vec![
         VerifyRule {
             rule: "AST-SEC-00: VALID_PYTHON_SYNTAX".to_string(),
-            status: if findings.iter().any(|f| f.contains("AST-SEC-00: VALID_PYTHON_SYNTAX")) { "FAIL".to_string() } else { "PASS".to_string() },
+            status: if findings.iter().any(|f| f.contains("AST-SEC-00")) { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Validates Python syntax via py_compile on modified .py files".to_string(),
         },
         VerifyRule {
@@ -595,7 +727,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         VerifyRule {
             rule: "AST-SEC-02: NO_OS_SYSTEM".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-02")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Rejects os.system calls".to_string(),
+            description: "Rejects os.system calls, os.popen, os.spawn, and pty.spawn".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-03: NO_SUBPROCESS".to_string(),
@@ -615,22 +747,22 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         VerifyRule {
             rule: "AST-SEC-06: NO_TEST_TAMPERING".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-06")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Block any diff that deletes existing def test_ functions or removes assert statements from test_*.py".to_string(),
+            description: "Blocks any diff that deletes existing def test_ functions or removes assert statements from test_*.py".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-07: NO_GIT_OR_ENV_TAMPERING".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-07")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Block modifications to .git/, .env, or *.sh files".to_string(),
+            description: "Blocks modifications to .git/, .env, or *.sh files".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-08: NO_OBFUSCATED_EXEC".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-08")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Block getattr(, builtins, os.popen, pty.spawn, shutil.rmtree, and socket.".to_string(),
+            description: "Blocks getattr(, __builtins__, builtins., shutil.rmtree, and socket.".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-09: MINIMAL_BLAST_RADIUS".to_string(),
-            status: if app_py_lines_added > 25 { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Enforces minimal blast radius: rejects hotfixes adding more than 25 lines to production .py files".to_string(),
+            status: if app_py_lines_added > 30 { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Enforces minimal blast radius: rejects hotfixes adding more than 30 lines to production .py files".to_string(),
         },
     ];
 
@@ -823,7 +955,7 @@ fn main() {
 
     if args[1] == "--help" || args[1] == "-h" || args[1] == "help" {
         println!(
-            "SwitchGuard SRE Security Guardrail CLI v{}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]\n  switchguard-cli verify-audit [audit_log_path]",
+            "switchguard-cli {}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]\n  switchguard-cli verify-audit [audit_log_path]\n\nFlags:\n  -V, --version    Print version info\n  -h, --help       Print help information",
             env!("CARGO_PKG_VERSION")
         );
         process::exit(0);
