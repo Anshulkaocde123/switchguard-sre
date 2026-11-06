@@ -45,7 +45,7 @@ reset: ## Reset repository & sandbox-app to clean baseline state (<1s)
 
 setup: reset ## Alias for reset
 
-test: ## Run the full 28-assertion 7-layer verification mega suite
+test: ## Run the full 30-assertion 7-layer verification mega suite
 	@echo -e "${CYAN}[*] Running 7-Layer Red-Team Verification Mega Suite...${RESET}"
 	@python3 scripts/mega_sre_test_suite.py
 

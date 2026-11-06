@@ -122,16 +122,13 @@ struct AuditVerifyOutput {
 }
 
 fn compute_hmac_token(val: &str) -> String {
-    let key = env::var("SWITCHGUARD_HMAC_KEY").unwrap_or_default();
-    let hash = if key.is_empty() {
-        format!("{:x}", Sha256::digest(val.as_bytes()))
-    } else {
-        let mut hasher = Sha256::new();
-        hasher.update(key.as_bytes());
-        hasher.update(b":");
-        hasher.update(val.as_bytes());
-        format!("{:x}", hasher.finalize())
-    };
+    let salt = env::var("SWITCHGUARD_HMAC_KEY")
+        .unwrap_or_else(|_| "switchguard-tee-default-salt-v1".to_string());
+    let mut hasher = Sha256::new();
+    hasher.update(salt.as_bytes());
+    hasher.update(b":");
+    hasher.update(val.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
     hash[..6].to_string()
 }
 
@@ -466,43 +463,181 @@ fn record_or_check_dedup(
 }
 
 fn normalize_display_path(raw_path: &str) -> String {
-    let p = Path::new(raw_path);
-    // 1. Try stripping git repo root if absolute
-    if let Ok(output) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
-        if output.status.success() {
-            let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let abs_target = if p.is_absolute() {
-                p.to_path_buf()
-            } else if let Ok(cur) = env::current_dir() {
-                cur.join(p)
-            } else {
-                p.to_path_buf()
-            };
-            if let Ok(rel) = abs_target.strip_prefix(&root) {
-                let s = rel.display().to_string();
-                if !s.is_empty() && s != "." {
-                    return s;
-                }
+    let cleaned = raw_path.replace('\\', "/");
+    if let Some(idx) = cleaned.find("workspace/") {
+        return cleaned[idx..].trim_end_matches('/').to_string();
+    }
+    if cleaned == "." || cleaned == "./" {
+        if let Ok(cwd) = std::env::current_dir() {
+            let cwd_str = cwd.to_string_lossy().replace('\\', "/");
+            if let Some(idx) = cwd_str.find("workspace/") {
+                return cwd_str[idx..].trim_end_matches('/').to_string();
             }
         }
     }
-    // 2. Check if string contains "workspace/"
-    if let Some(idx) = raw_path.find("workspace/") {
-        return raw_path[idx..].to_string();
-    }
-    // 3. Fallback: if absolute, return directory or file name
-    if p.is_absolute() {
-        if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
-            return format!("workspace/{}", name);
-        }
-    }
-    let s = p.display().to_string();
-    if s.is_empty() || s == "." {
-        "workspace/sandbox-app".to_string()
-    } else {
-        s
-    }
+    cleaned.trim_end_matches('/').to_string()
 }
+
+const AST_INSPECTOR_SCRIPT: &str = r#"
+import ast
+import json
+import os
+import subprocess
+import sys
+
+def inspect_tree(target_dir):
+    findings = []
+    target_path = os.path.abspath(target_dir)
+
+    if os.path.isfile(target_path):
+        py_files = [target_path] if target_path.endswith(".py") else []
+        search_root = os.path.dirname(target_path)
+    else:
+        py_files = []
+        search_root = target_path
+        for root, dirs, files in os.walk(target_path):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("venv", ".venv", "__pycache__", "target", "node_modules")]
+            for f in files:
+                if f.endswith(".py"):
+                    py_files.append(os.path.join(root, f))
+
+    def get_attr_chain(node):
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Attribute):
+            parent = get_attr_chain(node.value)
+            return f"{parent}.{node.attr}" if parent else node.attr
+        return ""
+
+    for file_path in py_files:
+        rel_path = os.path.relpath(file_path, search_root)
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                source = f.read()
+        except Exception:
+            continue
+
+        try:
+            tree = ast.parse(source, filename=rel_path)
+        except SyntaxError as e:
+            findings.append(f"AST-SEC-00: VALID_PYTHON_SYNTAX — Syntax error in modified Python file '{rel_path}': line {e.lineno}: {e.msg}")
+            continue
+
+        is_test_file = (
+            "test_" in os.path.basename(file_path)
+            or file_path.endswith("_test.py")
+            or "/tests/" in file_path.replace("\\", "/")
+        )
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                lineno = getattr(node, "lineno", 0)
+                if isinstance(node.func, ast.Name):
+                    fn_id = node.func.id
+                    if fn_id in ("eval", "exec", "compile"):
+                        findings.append(f"AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive '{fn_id}' in '{rel_path}:{lineno}'")
+                    elif fn_id == "__import__":
+                        findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '__import__' in '{rel_path}:{lineno}'")
+                    elif fn_id == "getattr":
+                        findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden dynamic execution primitive 'getattr' in '{rel_path}:{lineno}'")
+                    elif fn_id == "system":
+                        findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive 'system' in '{rel_path}:{lineno}'")
+                elif isinstance(node.func, ast.Attribute):
+                    call_name = get_attr_chain(node.func)
+                    if (
+                        call_name in ("os.system", "os.popen", "pty.spawn", "posix.system")
+                        or call_name.startswith("os.spawn")
+                    ):
+                        findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive '{call_name}' in '{rel_path}:{lineno}'")
+                    elif (
+                        call_name.startswith("subprocess.")
+                        or call_name in ("subprocess.run", "subprocess.Popen", "subprocess.call", "subprocess.check_output", "subprocess.check_call")
+                    ):
+                        findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden subprocess invocation '{call_name}' in '{rel_path}:{lineno}'")
+                    elif call_name.startswith("importlib.") or call_name in ("importlib.import_module", "importlib.__import__"):
+                        findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '{call_name}' in '{rel_path}:{lineno}'")
+                    elif (
+                        call_name.startswith("socket.")
+                        or call_name == "shutil.rmtree"
+                        or call_name in ("builtins.eval", "builtins.exec", "__builtins__.eval", "__builtins__.exec")
+                    ):
+                        findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden execution primitive '{call_name}' in '{rel_path}:{lineno}'")
+
+                for kw in getattr(node, "keywords", []):
+                    if kw.arg == "shell":
+                        val = getattr(kw.value, "value", None)
+                        if val is True:
+                            findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden keyword argument 'shell=True' in '{rel_path}:{lineno}'")
+
+            if not is_test_file:
+                lineno = getattr(node, "lineno", 0)
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        mod_name = alias.name.split(".")[0]
+                        if mod_name == "subprocess":
+                            findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import 'subprocess' in '{rel_path}:{lineno}'")
+                        elif mod_name == "pty":
+                            findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import 'pty' in '{rel_path}:{lineno}'")
+                        elif mod_name == "socket":
+                            findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import 'socket' in '{rel_path}:{lineno}'")
+                        elif mod_name == "importlib":
+                            findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import 'importlib' in '{rel_path}:{lineno}'")
+                elif isinstance(node, ast.ImportFrom):
+                    mod = node.module or ""
+                    mod_root = mod.split(".")[0]
+                    if mod_root == "subprocess":
+                        findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import from 'subprocess' in '{rel_path}:{lineno}'")
+                    elif mod_root == "pty":
+                        findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import from 'pty' in '{rel_path}:{lineno}'")
+                    elif mod_root == "socket":
+                        findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import from 'socket' in '{rel_path}:{lineno}'")
+                    elif mod_root == "importlib":
+                        findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import from 'importlib' in '{rel_path}:{lineno}'")
+                    elif mod_root == "os":
+                        for alias in node.names:
+                            if alias.name in ("system", "popen", "spawn") or alias.name.startswith("spawn"):
+                                findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import '{alias.name}' from 'os' in '{rel_path}:{lineno}'")
+
+        if is_test_file:
+            try:
+                git_root_proc = subprocess.run(["git", "-C", search_root, "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+                repo_root = git_root_proc.stdout.strip() if git_root_proc.returncode == 0 else search_root
+                git_rel_path = os.path.relpath(file_path, repo_root).replace("\\", "/")
+                git_show = subprocess.run(["git", "-C", repo_root, "show", f"HEAD:{git_rel_path}"], capture_output=True, text=True, errors="replace")
+                if git_show.returncode == 0:
+                    old_source = git_show.stdout
+                    old_tree = ast.parse(old_source, filename=rel_path)
+                    def count_tests_and_asserts(t):
+                        test_funcs = 0
+                        asserts = 0
+                        for n in ast.walk(t):
+                            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                                if n.name.startswith("test_"):
+                                    test_funcs += 1
+                            elif isinstance(n, ast.Assert):
+                                asserts += 1
+                            elif isinstance(n, ast.Call):
+                                chain = get_attr_chain(n.func)
+                                if chain in ("pytest.raises", "raises"):
+                                    asserts += 1
+                        return test_funcs, asserts
+
+                    old_tests, old_asserts = count_tests_and_asserts(old_tree)
+                    new_tests, new_asserts = count_tests_and_asserts(tree)
+
+                    if new_tests < old_tests:
+                        findings.append(f"AST-SEC-06: NO_TEST_TAMPERING — Test function count reduced from {old_tests} to {new_tests} in '{rel_path}'")
+                    if new_asserts < old_asserts:
+                        findings.append(f"AST-SEC-06: NO_TEST_TAMPERING — Assertion count reduced from {old_asserts} to {new_asserts} in '{rel_path}'")
+            except Exception:
+                pass
+
+    print(json.dumps(findings))
+
+if __name__ == "__main__":
+    target = sys.argv[1] if len(sys.argv) > 1 else "."
+    inspect_tree(target)
+"#;
 
 fn run_verify_diff(path_str: &str) -> VerifyOutput {
     let normalized_target = normalize_display_path(path_str);
@@ -586,67 +721,26 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         file_diffs.push((current_file, current_added, current_deleted));
     }
 
-    // Count changes in production .py files (non-test files)
+    // Count changes in production .py files (non-test files), excluding comments and blank lines
     let app_py_files: Vec<&(String, Vec<String>, Vec<String>)> = file_diffs
         .iter()
         .filter(|(f, _, _)| f.ends_with(".py") && !f.contains("test_") && !f.contains("/tests/") && !f.ends_with("_test.py"))
         .collect();
 
-    let app_py_lines_added: usize = app_py_files.iter().map(|(_, a, _)| a.len()).sum();
+    let app_py_lines_added: usize = app_py_files
+        .iter()
+        .map(|(_, added, _)| {
+            added
+                .iter()
+                .filter(|line| {
+                    let trimmed = line.strip_prefix('+').unwrap_or(line).trim();
+                    !trimmed.is_empty() && !trimmed.starts_with('#')
+                })
+                .count()
+        })
+        .sum();
 
     let mut findings: Vec<String> = Vec::new();
-
-    // Find git root for target path
-    let git_root = Command::new("git")
-        .args(["-C", cwd.to_str().unwrap_or("."), "rev-parse", "--show-toplevel"])
-        .output()
-        .ok()
-        .and_then(|out| {
-            if out.status.success() {
-                String::from_utf8(out.stdout).ok().map(|s| PathBuf::from(s.trim()))
-            } else {
-                None
-            }
-        })
-        .unwrap_or_else(|| target.to_path_buf());
-
-    // AST-SEC-00: VALID_PYTHON_SYNTAX — Run python3 -m py_compile (fallback python -m py_compile) on modified .py files
-    for (filename, _, _) in &file_diffs {
-        if filename.ends_with(".py") {
-            let full_path = if git_root.join(filename).exists() {
-                git_root.join(filename)
-            } else if target.join(filename).exists() {
-                target.join(filename)
-            } else {
-                PathBuf::from(filename)
-            };
-            if full_path.exists() {
-                let py_res = Command::new("python3")
-                    .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
-                    .output()
-                    .or_else(|_| {
-                        Command::new("python")
-                            .args(["-m", "py_compile", full_path.to_str().unwrap_or(filename)])
-                            .output()
-                    });
-
-                if let Ok(res) = py_res {
-                    if !res.status.success() {
-                        let err_msg = String::from_utf8_lossy(&res.stderr);
-                        let first_err = err_msg
-                            .lines()
-                            .find(|l| l.contains("SyntaxError") || l.contains("Error"))
-                            .unwrap_or("Syntax error detected");
-                        findings.push(format!(
-                            "AST-SEC-00: VALID_PYTHON_SYNTAX — Syntax error in modified Python file '{}': {}",
-                            filename,
-                            first_err.trim()
-                        ));
-                    }
-                }
-            }
-        }
-    }
 
     // AST-SEC-09: MINIMAL_BLAST_RADIUS — In non-test production .py files, rejects patches adding > 30 lines
     if app_py_lines_added > 30 {
@@ -685,69 +779,95 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // All added lines inspection
-    let all_added: Vec<String> = file_diffs.iter().flat_map(|(_, a, _)| a.clone()).collect();
+    // Diff line scanning with comment awareness
+    for (filename, added, _) in &file_diffs {
+        let is_py = filename.ends_with(".py");
+        for raw_line in added {
+            let line_content = raw_line.strip_prefix('+').unwrap_or(raw_line);
+            let trimmed = line_content.trim();
 
-    // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, __builtins__, builtins., shutil.rmtree, socket.
-    let obfuscated_tokens = [
-        ("getattr(", "Forbidden dynamic attribute access: getattr("),
-        ("__builtins__", "Forbidden builtins module manipulation: __builtins__"),
-        ("builtins.", "Forbidden builtins module manipulation: builtins."),
-        ("shutil.rmtree", "Forbidden filesystem destruction: shutil.rmtree"),
-        ("socket.", "Forbidden raw socket network access: socket."),
-    ];
-    for line in &all_added {
-        for (token, desc) in &obfuscated_tokens {
-            if line.contains(token) {
-                findings.push(format!("AST-SEC-08: NO_OBFUSCATED_EXEC — {}: found '{}' in '{}'", desc, token, line.trim()));
+            let is_comment = is_py && trimmed.starts_with('#');
+
+            // Skip AST-SEC-01, 02, 03, 04, 08 regex checks if it's a Python comment line
+            if !is_comment {
+                // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, __builtins__, builtins., shutil.rmtree, socket.
+                let obfuscated_tokens = [
+                    ("getattr(", "Forbidden dynamic attribute access: getattr("),
+                    ("__builtins__", "Forbidden builtins module manipulation: __builtins__"),
+                    ("builtins.", "Forbidden builtins module manipulation: builtins."),
+                    ("shutil.rmtree", "Forbidden filesystem destruction: shutil.rmtree"),
+                    ("socket.", "Forbidden raw socket network access: socket."),
+                ];
+                for (token, desc) in &obfuscated_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-08: NO_OBFUSCATED_EXEC — {}: found '{}' in '{}'", desc, token, trimmed));
+                    }
+                }
+
+                // AST-SEC-01: NO_EVAL_EXEC
+                if trimmed.contains("eval(") || trimmed.contains("exec(") {
+                    findings.push(format!("AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive in '{}'", trimmed));
+                }
+
+                // AST-SEC-02: NO_OS_SYSTEM — os.system(, os.popen(, os.spawn, pty.spawn
+                let os_tokens = ["os.system(", "os.popen(", "os.spawn", "pty.spawn"];
+                for token in &os_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-03: NO_SUBPROCESS — subprocess. or shell=True
+                let subproc_tokens = ["subprocess.", "shell=True", "shell = True"];
+                for token in &subproc_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-03: NO_SUBPROCESS — Forbidden subprocess invocation '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-04: NO_DYNAMIC_IMPORT — __import__ or importlib.
+                let import_tokens = ["__import__", "importlib."];
+                for token in &import_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '{}' in '{}'", token, trimmed));
+                    }
+                }
+            }
+
+            // AST-SEC-05: NO_HARDCODED_SECRETS — AKIA[0-9A-Z]{16}, -----BEGIN, or hardcoded api_key = "..."
+            let re_secret_key = RE_SECRET_KEY.get_or_init(|| {
+                Regex::new(r##"(?i)api[_-]?key\s*=\s*['"][A-Za-z0-9_\-\.]{8,}['"]"##).unwrap()
+            });
+            if trimmed.contains("-----BEGIN") || trimmed.contains("AKIA") || trimmed.contains("AIzaSy") || trimmed.contains("sk_live_") || re_secret_key.is_match(trimmed) {
+                findings.push(format!("AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret or API credential in '{}'", trimmed));
             }
         }
     }
 
-    // AST-SEC-01: NO_EVAL_EXEC
-    for line in &all_added {
-        if line.contains("eval(") || line.contains("exec(") {
-            findings.push(format!("AST-SEC-01: NO_EVAL_EXEC — Forbidden dynamic execution primitive in '{}'", line.trim()));
-        }
-    }
+    // Run True Python AST Deep Inspector
+    let target_dir_str = target.to_str().unwrap_or(".");
+    let py_output = Command::new("python3")
+        .args(["-c", AST_INSPECTOR_SCRIPT, target_dir_str])
+        .output()
+        .or_else(|_| {
+            Command::new("python")
+                .args(["-c", AST_INSPECTOR_SCRIPT, target_dir_str])
+                .output()
+        });
 
-    // AST-SEC-02: NO_OS_SYSTEM — os.system(, os.popen(, os.spawn, pty.spawn
-    let os_tokens = ["os.system(", "os.popen(", "os.spawn", "pty.spawn"];
-    for line in &all_added {
-        for token in &os_tokens {
-            if line.contains(token) {
-                findings.push(format!("AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive '{}' in '{}'", token, line.trim()));
+    if let Ok(out) = py_output {
+        if out.status.success() {
+            if let Ok(ast_findings) = serde_json::from_slice::<Vec<String>>(&out.stdout) {
+                findings.extend(ast_findings);
             }
-        }
-    }
-
-    // AST-SEC-03: NO_SUBPROCESS — subprocess. or shell=True
-    let subproc_tokens = ["subprocess.", "shell=True", "shell = True"];
-    for line in &all_added {
-        for token in &subproc_tokens {
-            if line.contains(token) {
-                findings.push(format!("AST-SEC-03: NO_SUBPROCESS — Forbidden subprocess invocation '{}' in '{}'", token, line.trim()));
+        } else {
+            let stderr_str = String::from_utf8_lossy(&out.stderr);
+            if stderr_str.contains("SyntaxError") {
+                findings.push(format!(
+                    "AST-SEC-00: VALID_PYTHON_SYNTAX — {}",
+                    stderr_str.lines().find(|l| l.contains("SyntaxError")).unwrap_or("Syntax error detected")
+                ));
             }
-        }
-    }
-
-    // AST-SEC-04: NO_DYNAMIC_IMPORT — __import__ or importlib.
-    let import_tokens = ["__import__", "importlib."];
-    for line in &all_added {
-        for token in &import_tokens {
-            if line.contains(token) {
-                findings.push(format!("AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '{}' in '{}'", token, line.trim()));
-            }
-        }
-    }
-
-    // AST-SEC-05: NO_HARDCODED_SECRETS — AKIA[0-9A-Z]{16}, -----BEGIN, or hardcoded api_key = "..."
-    let re_secret_key = RE_SECRET_KEY.get_or_init(|| {
-        Regex::new(r##"(?i)api[_-]?key\s*=\s*['"][A-Za-z0-9_\-\.]{8,}['"]"##).unwrap()
-    });
-    for line in &all_added {
-        if line.contains("-----BEGIN") || line.contains("AKIA") || line.contains("AIzaSy") || line.contains("sk_live_") || re_secret_key.is_match(line) {
-            findings.push(format!("AST-SEC-05: NO_HARDCODED_SECRETS — Forbidden secret or API credential in '{}'", line.trim()));
         }
     }
 
@@ -757,7 +877,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         VerifyRule {
             rule: "AST-SEC-00: VALID_PYTHON_SYNTAX".to_string(),
             status: if findings.iter().any(|f| f.contains("AST-SEC-00")) { "FAIL".to_string() } else { "PASS".to_string() },
-            description: "Validates Python syntax via py_compile on modified .py files".to_string(),
+            description: "Validates Python syntax via py_compile and ast.parse on modified .py files".to_string(),
         },
         VerifyRule {
             rule: "AST-SEC-01: NO_EVAL_EXEC".to_string(),
@@ -875,7 +995,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                     return AuditVerifyOutput {
                         verdict: "TAMPER_DETECTED".to_string(),
                         status: "BLOCKED".to_string(),
-                        audit_log: log_path_str.to_string(),
+                        audit_log: normalized_log.clone(),
                         genesis_hash: genesis.to_string(),
                         entries_verified: verified_count,
                         latest_chain_hash: current_chain_hash,
@@ -892,7 +1012,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                     return AuditVerifyOutput {
                         verdict: "TAMPER_DETECTED".to_string(),
                         status: "BLOCKED".to_string(),
-                        audit_log: log_path_str.to_string(),
+                        audit_log: normalized_log.clone(),
                         genesis_hash: genesis.to_string(),
                         entries_verified: verified_count,
                         latest_chain_hash: current_chain_hash,

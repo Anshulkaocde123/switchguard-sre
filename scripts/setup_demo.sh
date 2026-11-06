@@ -32,7 +32,7 @@ git -C "$ROOT_DIR/workspace/sandbox-app" clean -fd 2>/dev/null || true
 rm -rf "$ROOT_DIR/workspace/sandbox-app/__pycache__" "$ROOT_DIR/workspace/sandbox-app/.pytest_cache"
 
 echo "==> [3/5] Resetting live telemetry state, dedup index, and incidents ledger..."
-echo '{"incident_id": "NONE", "current_state": "IDLE", "retry_count": 0, "incidents": {}}' > "$ROOT_DIR/workspace/telemetry/incident_state.json"
+echo '{"incident_id": "NONE", "current_state": "IDLE", "retry_count": 0}' > "$ROOT_DIR/workspace/telemetry/incident_state.json"
 echo '{}' > "$ROOT_DIR/workspace/telemetry/dedup_index.json"
 rm -f "$ROOT_DIR/workspace/telemetry/.triage.lock" "$ROOT_DIR/workspace/telemetry/dedup_index.lock" "$ROOT_DIR/workspace/telemetry/incident_state.json.tmp"
 rm -rf "$ROOT_DIR/workspace/telemetry/__pycache__"
@@ -91,8 +91,8 @@ cat << 'EOF' > "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log"
 EOF
 
 # Purge synthetic test artifacts and lock files
-rm -f "$ROOT_DIR/workspace/release-ops/releases/attestation-INC-9999-v1.4.3.json" \
-      "$ROOT_DIR/workspace/release-ops/releases/hotfix-INC-9999-v1.4.3.patch" \
+rm -f "$ROOT_DIR/workspace/release-ops/releases/attestation-INC-9999"* \
+      "$ROOT_DIR/workspace/release-ops/releases/hotfix-INC-9999"* \
       "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log.lock"
 
 # Verify audit chain integrity
@@ -100,6 +100,12 @@ switchguard-cli verify-audit "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log"
 
 # Regenerate clean executive dashboard
 python3 "$ROOT_DIR/workspace/release-ops/cut_release.py" --dashboard >/dev/null
+
+# Restore tracked ledger, audit, release, and dashboard files to clean committed baseline
+git checkout HEAD -- "$ROOT_DIR/workspace/telemetry/incidents_ledger.md" \
+                     "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log" \
+                     "$ROOT_DIR/docs/index.html" \
+                     "$ROOT_DIR/workspace/release-ops/releases/" 2>/dev/null || true
 
 echo "==> [5/5] Verifying baseline pytest suite..."
 python3 -m pytest -q "$ROOT_DIR/workspace/sandbox-app/test_cart.py"

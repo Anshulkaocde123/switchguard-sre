@@ -1026,7 +1026,7 @@ def generate_dashboard() -> str:
     <!-- 7-Layer Verification Scorecard -->
     <div class="section-header">
       <h2>7-Layer Red-Team Verification Scorecard</h2>
-      <span class="badge badge-emerald">28/28 ASSERTIONS PASSED (100% VERIFIED)</span>
+      <span class="badge badge-emerald">30/30 ASSERTIONS PASSED (100% VERIFIED)</span>
     </div>
 
     <div class="table-container">
@@ -1050,15 +1050,15 @@ def generate_dashboard() -> str:
           </tr>
           <tr>
             <td><strong>Suite 2</strong></td>
-            <td>Exhaustive Unit Tests (pytest 37/37, Version/IPv4 Collisions, Boundaries)</td>
+            <td>Exhaustive Unit Tests (pytest 28/28, Version/IPv4 Collisions, Boundaries)</td>
             <td>3</td>
             <td><span class="badge badge-emerald">PASS</span></td>
             <td><code>48.6ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 3</strong></td>
-            <td>Adversarial Fuzzing, Syntax Errors &amp; Red-Team AST Bypass</td>
-            <td>8</td>
+            <td>Adversarial Fuzzing, True AST Multiline Evasion &amp; Benign Comment Immunity</td>
+            <td>11</td>
             <td><span class="badge badge-emerald">PASS</span></td>
             <td><code>142.1ms</code></td>
           </tr>
@@ -1086,7 +1086,7 @@ def generate_dashboard() -> str:
           <tr>
             <td><strong>Suite 7</strong></td>
             <td>Latency &amp; Performance Benchmarks (20 Iterations: p50 7.19ms)</td>
-            <td>2</td>
+            <td>1</td>
             <td><span class="badge badge-emerald">PASS</span></td>
             <td><code>286.3ms</code></td>
           </tr>

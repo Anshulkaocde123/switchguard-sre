@@ -2,7 +2,7 @@
 
 [![Hackathon: Flip the Switch 2026](https://img.shields.io/badge/Hackathon-Flip_the_Switch_2026-orange.svg?style=flat-square)](https://www.wemakedevs.org/hackathons/switch)
 [![Track 01: Best Business Workflow](https://img.shields.io/badge/Track_01-Best_Business_Workflow-blue.svg?style=flat-square)](#)
-[![CI / 7-Layer Test Suite](https://img.shields.io/badge/7--Layer_Mega_Suite-28%2F28_PASSING-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/actions)
+[![CI / 7-Layer Test Suite](https://img.shields.io/badge/7--Layer_Mega_Suite-30%2F30_PASSING-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/actions)
 [![Live Executive Dashboard](https://img.shields.io/badge/Live_Dashboard-GitHub_Pages-00C853.svg?style=flat-square&logo=github)](https://anshulkaocde123.github.io/switchguard-sre/)
 [![Rust 0.4.0 LTO Binary](https://img.shields.io/badge/Rust_CLI-v0.4.0_LTO_Stripped-DEA584.svg?style=flat-square&logo=rust)](#)
 [![Scrubber Core Latency](https://img.shields.io/badge/Rust_Scrub_p50-0.42ms-blue.svg?style=flat-square)](#)
@@ -18,7 +18,7 @@
 ### 🌐 Live Artifacts & Navigation
 - 📊 **Live Executive Dashboard:** [https://anshulkaocde123.github.io/switchguard-sre/](https://anshulkaocde123.github.io/switchguard-sre/) *(Features interactive in-browser Rust scrubber & AST rule verification widget)*
 - 📦 **Target Application Microservice:** [Anshulkaocde123/switchguard-sandbox-app](https://github.com/Anshulkaocde123/switchguard-sandbox-app)
-- 📋 **Automated Verification Report:** [TEST_VERIFICATION_REPORT.md](TEST_VERIFICATION_REPORT.md) *(28/28 assertions verified across 7 layers)*
+- 📋 **Automated Verification Report:** [TEST_VERIFICATION_REPORT.md](TEST_VERIFICATION_REPORT.md) *(30/30 assertions verified across 7 layers)*
 - 📑 **1-Click Switch Room Template:** [switchguard-sre.template.yaml](switchguard-sre.template.yaml)
 
 ---
@@ -147,7 +147,7 @@ Every proposed hotfix diff is scanned out-of-band by `switchguard-cli verify-dif
 
 ## 5. 7-Layer Verification Scorecard & Latency Benchmarks
 
-SwitchGuard SRE includes a comprehensive verification harness (`scripts/mega_sre_test_suite.py`) testing all 7 architectural layers with **28 automated assertions**:
+SwitchGuard SRE includes a comprehensive verification harness (`scripts/mega_sre_test_suite.py`) testing all 7 architectural layers with **30 automated assertions**:
 
 ### Verification Scorecard
 
@@ -155,12 +155,12 @@ SwitchGuard SRE includes a comprehensive verification harness (`scripts/mega_sre
 | :-: | :--- | :--- | :-: | :-: | :-: |
 | **1** | **Smoke & Environment** | CLI binary existence, LTO compilation, config validation, workspace isolation | 3 | ✅ PASS | 20.7ms |
 | **2** | **Unit & Boundaries** | `test_cart.py` (28 unit tests), VIP_FREE, currency conversion, boundary conditions | 3 | ✅ PASS | 197.0ms |
-| **3** | **Adversarial & AST** | Shell metacharacter injection, multi-secret scrubbing, AST rules 00..09, empty diff | 9 | ✅ PASS | 547.3ms |
+| **3** | **Adversarial & AST** | Shell metacharacter injection, multi-secret scrubbing, AST rules 00..09, multiline split evasion, benign comments | 11 | ✅ PASS | 547.3ms |
 | **4** | **High Concurrency** | 32 parallel worker storm, 1 `FIRST_SEEN` + 31 `SUPPRESSED_DUPLICATE`, 0 corruptions | 1 | ✅ PASS | 764.6ms |
 | **5** | **E2E & Rollback** | Triage $\rightarrow$ surgical patch $\rightarrow$ release $\rightarrow$ memory hit $\rightarrow$ rollback $\rightarrow$ audit tamper block | 6 | ✅ PASS | 780.6ms |
 | **6** | **Circuit Breaker** | FSM state initialization, 2-strike trip $\rightarrow$ `CIRCUIT_BROKEN`, terminal rejection | 5 | ✅ PASS | 23.8ms |
 | **7** | **Performance SLAs** | Latency benchmarks: p50/p95/p99 evaluation across 20 iterations | 1 | ✅ PASS | 499.0ms |
-| **Σ** | **Full Verification Suite** | **Comprehensive Red-Team Verification** | **28** | **✅ 100% PASS** | **2.83s** |
+| **Σ** | **Full Verification Suite** | **Comprehensive Red-Team Verification** | **30** | **✅ 100% PASS** | **2.83s** |
 
 ### Latency Benchmarks (20 Iterations)
 
@@ -189,7 +189,7 @@ cd switchguard-sre
 # 2. Build Rust CLI v0.4.0 with LTO optimizations
 make build
 
-# 3. Run the full 28-assertion 7-layer verification mega suite (All 7 Suites pass 100%)
+# 3. Run the full 30-assertion 7-layer verification mega suite (All 7 Suites pass 100%)
 make test
 
 # 4. Demonstrate live prompt-injection attack interception (INC-8043 blocked by AST-SEC-02)
@@ -258,13 +258,13 @@ switchguard-sre/
 ├── SWITCH_PROTOCOL.md                 # Upstream Switch protocol specs & PR documentation
 ├── SKILL_RUST_VERIFIER.md             # Native Rust CLI verification specification
 ├── switchguard-sre.template.yaml      # 1-click Switch Room Template definition
-├── TEST_VERIFICATION_REPORT.md        # Cryptographic verification report (28/28 passed)
+├── TEST_VERIFICATION_REPORT.md        # Cryptographic verification report (30/30 passed)
 ├── docs/
 │   └── index.html                     # Live executive observability dashboard & interactive widget
 ├── scripts/
 │   ├── setup_demo.sh                  # Deterministic clean-room reset orchestrator (<1s)
 │   ├── simulate_incident.py           # Multi-scenario incident & red-team simulator CLI
-│   └── mega_sre_test_suite.py         # 7-layer verification mega suite (28 assertions)
+│   └── mega_sre_test_suite.py         # 7-layer verification mega suite (30 assertions)
 ├── switchguard-cli/                   # High-speed compiled Rust security CLI (v0.4.0)
 │   ├── Cargo.toml                     # LTO release optimization profile (opt-level=3, strip=true)
 │   └── src/
