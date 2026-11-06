@@ -465,7 +465,47 @@ fn record_or_check_dedup(
     (status, count)
 }
 
+fn normalize_display_path(raw_path: &str) -> String {
+    let p = Path::new(raw_path);
+    // 1. Try stripping git repo root if absolute
+    if let Ok(output) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
+        if output.status.success() {
+            let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let abs_target = if p.is_absolute() {
+                p.to_path_buf()
+            } else if let Ok(cur) = env::current_dir() {
+                cur.join(p)
+            } else {
+                p.to_path_buf()
+            };
+            if let Ok(rel) = abs_target.strip_prefix(&root) {
+                let s = rel.display().to_string();
+                if !s.is_empty() && s != "." {
+                    return s;
+                }
+            }
+        }
+    }
+    // 2. Check if string contains "workspace/"
+    if let Some(idx) = raw_path.find("workspace/") {
+        return raw_path[idx..].to_string();
+    }
+    // 3. Fallback: if absolute, return directory or file name
+    if p.is_absolute() {
+        if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+            return format!("workspace/{}", name);
+        }
+    }
+    let s = p.display().to_string();
+    if s.is_empty() || s == "." {
+        "workspace/sandbox-app".to_string()
+    } else {
+        s
+    }
+}
+
 fn run_verify_diff(path_str: &str) -> VerifyOutput {
+    let normalized_target = normalize_display_path(path_str);
     let target = Path::new(path_str);
     let (cwd, pathspec) = if target.is_file() {
         (
@@ -503,7 +543,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         return VerifyOutput {
             verdict: "BLOCKED".to_string(),
             status: "EMPTY_PATCH_REJECTED".to_string(),
-            target_path: target.display().to_string(),
+            target_path: normalized_target.clone(),
             sha256: diff_hash,
             forbidden_findings: vec![
                 "AST-SEC-00: EMPTY_PATCH_REJECTED — git diff returned 0 bytes".to_string(),
@@ -769,7 +809,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     VerifyOutput {
         verdict: if is_blocked { "BLOCKED".to_string() } else { "PASS".to_string() },
         status: if is_blocked { "BLOCKED".to_string() } else { "PASS".to_string() },
-        target_path: target.display().to_string(),
+        target_path: normalized_target,
         sha256: diff_hash,
         forbidden_findings: findings,
         rules,
@@ -777,6 +817,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
 }
 
 fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
+    let normalized_log = normalize_display_path(log_path_str);
     let genesis = "0000000000000000000000000000000000000000000000000000000000000000";
     let target = Path::new(log_path_str);
 
@@ -784,12 +825,12 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
         return AuditVerifyOutput {
             verdict: "BLOCKED".to_string(),
             status: "FILE_NOT_FOUND".to_string(),
-            audit_log: log_path_str.to_string(),
+            audit_log: normalized_log.clone(),
             genesis_hash: genesis.to_string(),
             entries_verified: 0,
             latest_chain_hash: genesis.to_string(),
             tamper_detected: true,
-            error: Some(format!("Audit log not found at: {}", log_path_str)),
+            error: Some(format!("Audit log not found at: {}", normalized_log)),
             failed_entry: None,
         };
     }
@@ -800,7 +841,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
             return AuditVerifyOutput {
                 verdict: "BLOCKED".to_string(),
                 status: "READ_ERROR".to_string(),
-                audit_log: log_path_str.to_string(),
+                audit_log: normalized_log.clone(),
                 genesis_hash: genesis.to_string(),
                 entries_verified: 0,
                 latest_chain_hash: genesis.to_string(),
@@ -880,7 +921,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                 return AuditVerifyOutput {
                     verdict: "TAMPER_DETECTED".to_string(),
                     status: "BLOCKED".to_string(),
-                    audit_log: log_path_str.to_string(),
+                    audit_log: normalized_log.clone(),
                     genesis_hash: genesis.to_string(),
                     entries_verified: verified_count,
                     latest_chain_hash: current_chain_hash.clone(),
@@ -910,7 +951,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                 return AuditVerifyOutput {
                     verdict: "TAMPER_DETECTED".to_string(),
                     status: "BLOCKED".to_string(),
-                    audit_log: log_path_str.to_string(),
+                    audit_log: normalized_log.clone(),
                     genesis_hash: genesis.to_string(),
                     entries_verified: verified_count,
                     latest_chain_hash: current_chain_hash,
@@ -931,7 +972,7 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
     AuditVerifyOutput {
         verdict: "VERIFIED".to_string(),
         status: "PASS".to_string(),
-        audit_log: log_path_str.to_string(),
+        audit_log: normalized_log,
         genesis_hash: genesis.to_string(),
         entries_verified: verified_count,
         latest_chain_hash: current_chain_hash,

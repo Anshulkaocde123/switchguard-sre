@@ -4,7 +4,7 @@
   "timestamp": "2026-11-06T05:12:19.859440+00:00",
   "binary_sha256": "5b87febc5aec6002de77966606964c4ce0e61177371cc88020a813c449150f5b",
   "patch_sha256": "0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28",
-  "chain_hash": "e99c4a55a19b9014b855c9eda7ecd3e972391e73322fb5e8fb73600f792a33f4",
+  "chain_hash": "77519c5dd1270126469cc783d3e3a8f88f89a38162bcb0f10750af102a46c975",
   "ast_rules_checked": 10,
   "human_gate_verified": true
 }
