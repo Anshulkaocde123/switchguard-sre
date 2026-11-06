@@ -1,5 +1,5 @@
 diff --git a/cart_service.py b/cart_service.py
-index 2ff30ac..aedd086 100644
+index 687bb07..c23b576 100644
 --- a/cart_service.py
 +++ b/cart_service.py
 @@ -51,7 +51,7 @@ def calculate_cart_total(

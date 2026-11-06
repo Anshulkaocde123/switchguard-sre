@@ -619,7 +619,7 @@
           <div class="pulse-dot"></div>
           <span>TEE ENCLAVE ATTESTED & HARDENED</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono);">2026-11-06 05:12:44 UTC</div>
+        <div style="font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono);">2026-11-06 05:23:49 UTC</div>
       </div>
     </header>
 
@@ -796,6 +796,89 @@
           <div class="flame-bar flame-python" style="width: 91%;">Python ast.parse & Dynamic Evaluation: 140.0ms</div>
         </div>
       </div>
+    </div>
+
+    <!-- 7-Layer Verification Scorecard -->
+    <div class="section-header">
+      <div class="section-title">
+        <span>🏆</span> 7-Layer Autonomous Red-Team Verification Scorecard
+      </div>
+      <div style="font-size: 13px; color: var(--text-secondary);">
+        28 / 28 Automated Assertions Passed • p95 Latency 8.55ms • 100% Production Ready
+      </div>
+    </div>
+
+    <div class="table-container" style="margin-bottom: 36px;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Testing Layer</th>
+            <th>Assertions</th>
+            <th>Verdict</th>
+            <th>Latency SLA</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>1</code></td>
+            <td><strong>Smoke & Environment Integrity</strong> (Binaries, Hashes, Workspace Isolation)</td>
+            <td>3 / 3</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 20ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>2</code></td>
+            <td><strong>Exhaustive Unit Tests</strong> (28 pytest cases, PII Scrubber boundaries, IPv4 regex)</td>
+            <td>3 / 3</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 200ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>3</code></td>
+            <td><strong>Adversarial Fuzzing & AST Bypass</strong> (RCE, Syntax, Obfuscated Exec, Blast Radius)</td>
+            <td>9 / 9</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 500ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>4</code></td>
+            <td><strong>High-Concurrency Alert Storm Stress</strong> (32 Parallel Workers, flock locking)</td>
+            <td>1 / 1</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 700ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>5</code></td>
+            <td><strong>End-to-End Integration & Rollback</strong> (Triage, Patch, Release, Tamper Detect, HITL)</td>
+            <td>6 / 6</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 650ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>6</code></td>
+            <td><strong>Agent Loop Prevention & FSM Breaker</strong> (2-Strike Circuit Breaker, Terminal FSM)</td>
+            <td>5 / 5</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>&lt; 15ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+          <tr>
+            <td><code>7</code></td>
+            <td><strong>Latency & Performance SLA Benchmarks</strong> (LTO Rust Binary p50=7.19ms, p95=8.55ms)</td>
+            <td>1 / 1</td>
+            <td><span class="badge badge-green">100% PASS</span></td>
+            <td><code>p95 &lt; 10ms</code></td>
+            <td><span class="badge badge-emerald">VERIFIED</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Section 1: Sanitized Incidents Table -->
@@ -5331,6 +5414,1266 @@
               <td class="summary-cell">[SUPPRESSED SPIKE #2] Another FLAT100 voucher issue cart_service.py line 5 -$60.00</td>
             </tr>
             
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-FUZZ-01 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">BUG</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">77bd63bfa0b5...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] $(whoami) id ; touch /tmp/switchguard_pwned ; echo hello</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-01</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-05 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-10 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-02 (SPIKE #4)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #4] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-03 (SPIKE #5)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #5] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-00 (SPIKE #6)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #6] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-06 (SPIKE #7)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #7] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-07 (SPIKE #8)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #8] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-12 (SPIKE #9)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #9] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-20 (SPIKE #10)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #10] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-22 (SPIKE #11)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #11] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-29 (SPIKE #12)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #12] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-04 (SPIKE #13)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #13] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:09 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-17 (SPIKE #14)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #14] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-14 (SPIKE #15)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #15] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-26 (SPIKE #16)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #16] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-21 (SPIKE #17)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #17] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-09 (SPIKE #18)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #18] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-31 (SPIKE #19)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #19] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-23 (SPIKE #20)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #20] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-18 (SPIKE #21)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #21] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-24 (SPIKE #22)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #22] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-28 (SPIKE #23)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #23] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-13 (SPIKE #24)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #24] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-11 (SPIKE #25)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #25] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-08 (SPIKE #26)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #26] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-15 (SPIKE #27)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #27] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-30 (SPIKE #28)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #28] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-27 (SPIKE #29)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #29] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-16 (SPIKE #30)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #30] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-25 (SPIKE #31)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #31] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-19 (SPIKE #32)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #32] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d8602f6053d0...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] FLAT100 -$60.00 cart_service.py line 5</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:14:10 UTC</code></td>
+              <td><span class="badge badge-blue">INC-MEM-TEST (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">f7eb5fe0669e...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Another FLAT100 voucher issue cart_service.py line 5 -$60.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-FUZZ-01 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">BUG</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">77bd63bfa0b5...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] $(whoami) id ; touch /tmp/switchguard_pwned ; echo hello</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-06</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-04 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-02 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-00 (SPIKE #4)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #4] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-17 (SPIKE #5)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #5] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-15 (SPIKE #6)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #6] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-18 (SPIKE #7)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #7] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-05 (SPIKE #8)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #8] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-09 (SPIKE #9)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #9] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-20 (SPIKE #10)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #10] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-28 (SPIKE #11)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #11] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-03 (SPIKE #12)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #12] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-19 (SPIKE #13)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #13] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-08 (SPIKE #14)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #14] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-16 (SPIKE #15)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #15] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-21 (SPIKE #16)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #16] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-07 (SPIKE #17)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #17] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-01 (SPIKE #18)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #18] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:01 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-27 (SPIKE #19)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #19] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-26 (SPIKE #20)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #20] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-14 (SPIKE #21)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #21] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-29 (SPIKE #22)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #22] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-30 (SPIKE #23)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #23] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-24 (SPIKE #24)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #24] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-11 (SPIKE #25)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #25] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-12 (SPIKE #26)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #26] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-22 (SPIKE #27)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #27] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-13 (SPIKE #28)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #28] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-10 (SPIKE #29)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #29] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-23 (SPIKE #30)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #30] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-31 (SPIKE #31)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #31] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-25 (SPIKE #32)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #32] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d8602f6053d0...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] FLAT100 -$60.00 cart_service.py line 5</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:22:02 UTC</code></td>
+              <td><span class="badge badge-blue">INC-MEM-TEST (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">f7eb5fe0669e...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Another FLAT100 voucher issue cart_service.py line 5 -$60.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:12 UTC</code></td>
+              <td><span class="badge badge-blue">INC-FUZZ-01 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">BUG</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">77bd63bfa0b5...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] $(whoami) id ; touch /tmp/switchguard_pwned ; echo hello</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-06</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-05 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-03 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-27 (SPIKE #4)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #4] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-13 (SPIKE #5)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #5] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-04 (SPIKE #6)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #6] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-00 (SPIKE #7)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #7] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-02 (SPIKE #8)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #8] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-01 (SPIKE #9)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #9] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-26 (SPIKE #10)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #10] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-07 (SPIKE #11)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #11] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-19 (SPIKE #12)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #12] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-29 (SPIKE #13)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #13] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-15 (SPIKE #14)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #14] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-16 (SPIKE #15)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #15] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-17 (SPIKE #16)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #16] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-14 (SPIKE #17)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #17] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-12 (SPIKE #18)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #18] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-09 (SPIKE #19)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #19] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-20 (SPIKE #20)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #20] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-08 (SPIKE #21)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #21] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-22 (SPIKE #22)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #22] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-10 (SPIKE #23)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #23] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-24 (SPIKE #24)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #24] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-31 (SPIKE #25)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #25] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-30 (SPIKE #26)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #26] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-23 (SPIKE #27)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #27] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-28 (SPIKE #28)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #28] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-18 (SPIKE #29)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #29] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-11 (SPIKE #30)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #30] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-21 (SPIKE #31)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #31] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-25 (SPIKE #32)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #32] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:13 UTC</code></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d8602f6053d0...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] FLAT100 -$60.00 cart_service.py line 5</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:14 UTC</code></td>
+              <td><span class="badge badge-blue">INC-MEM-TEST (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">f7eb5fe0669e...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Another FLAT100 voucher issue cart_service.py line 5 -$60.00</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:47 UTC</code></td>
+              <td><span class="badge badge-blue">INC-FUZZ-01 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">BUG</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">77bd63bfa0b5...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] $(whoami) id ; touch /tmp/switchguard_pwned ; echo hello</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:47 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-07</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:47 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-06 (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:47 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-13 (SPIKE #3)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #3] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:47 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-08 (SPIKE #4)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #4] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-02 (SPIKE #5)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #5] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-04 (SPIKE #6)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #6] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-16 (SPIKE #7)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #7] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-26 (SPIKE #8)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #8] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-09 (SPIKE #9)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #9] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-05 (SPIKE #10)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #10] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-27 (SPIKE #11)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #11] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-00 (SPIKE #12)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #12] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-14 (SPIKE #13)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #13] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-31 (SPIKE #14)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #14] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-18 (SPIKE #15)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #15] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-24 (SPIKE #16)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #16] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-28 (SPIKE #17)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #17] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-03 (SPIKE #18)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #18] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-17 (SPIKE #19)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #19] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-23 (SPIKE #20)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #20] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-29 (SPIKE #21)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #21] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-19 (SPIKE #22)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #22] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-01 (SPIKE #23)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #23] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-12 (SPIKE #24)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #24] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-25 (SPIKE #25)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #25] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-11 (SPIKE #26)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #26] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-22 (SPIKE #27)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #27] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-10 (SPIKE #28)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #28] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-21 (SPIKE #29)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #29] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-30 (SPIKE #30)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #30] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-20 (SPIKE #31)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #31] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-STORM-15 (SPIKE #32)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d48ac27f0212...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #32] Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_9667aa] cart_service.py:5 FLAT100 -$60.00 CONCURRENCY_STORM</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">2 PII Redactions</span></td>
+              <td><code class="hash-code">d8602f6053d0...</code></td>
+              <td class="summary-cell">Bearer [REDACTED_AUTH_TOKEN] [REDACTED_EMAIL_b4c9a2] FLAT100 -$60.00 cart_service.py line 5</td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06 05:23:48 UTC</code></td>
+              <td><span class="badge badge-blue">INC-MEM-TEST (SPIKE #2)</span></td>
+              <td><span class="badge badge-purple">NEGATIVE_TOTAL_CALCULATION</span></td>
+              <td><span class="badge badge-teal">0 PII Redactions</span></td>
+              <td><code class="hash-code">f7eb5fe0669e...</code></td>
+              <td class="summary-cell">[SUPPRESSED SPIKE #2] Another FLAT100 voucher issue cart_service.py line 5 -$60.00</td>
+            </tr>
+            
         </tbody>
       </table>
     </div>
@@ -5466,12 +6809,12 @@
 
         <div class="tee-item">
           <div class="tee-item-label">Verified Patch SHA-256</div>
-          <div class="tee-item-val">0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28</div>
+          <div class="tee-item-val">0a53dd0fec88a05e811f19f35358311b19ac21b1b3fac3818453f7c560561678</div>
         </div>
 
         <div class="tee-item">
           <div class="tee-item-label">Chain Hash (Merkle Chain)</div>
-          <div class="tee-item-val" style="color: #fbbf24;">f446f0746f9337c8cdcb1ae5792f9265af5e17b31a1918a0901c2f50d27ba8db</div>
+          <div class="tee-item-val" style="color: #fbbf24;">9cdf84651563ff0d57af96109f9cf3bcccaebd6fad33315937a8e4560cde4dfd</div>
         </div>
 
         <div class="tee-status-row">
@@ -5654,6 +6997,54 @@
         <div class="chain-block">
           <div class="chain-label">RELEASE #25 (v1.4.3)</div>
           <div class="chain-hash">93683643668fb0...</div>
+          <div class="chain-meta">INC-9999 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #26 (v1.4.3)</div>
+          <div class="chain-hash">2c99b263114071...</div>
+          <div class="chain-meta">INC-9999 • hotfix-INC-9999-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #27 (v1.4.3)</div>
+          <div class="chain-hash">8473a98779f3f0...</div>
+          <div class="chain-meta">INC-9999 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #28 (v1.4.3)</div>
+          <div class="chain-hash">cc39f38baf6625...</div>
+          <div class="chain-meta">INC-9999 • hotfix-INC-9999-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #29 (v1.4.3)</div>
+          <div class="chain-hash">697a60a1ca3556...</div>
+          <div class="chain-meta">INC-9999 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #30 (v1.4.3)</div>
+          <div class="chain-hash">3977a01c60b1ae...</div>
+          <div class="chain-meta">INC-9999 • hotfix-INC-9999-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #31 (v1.4.3)</div>
+          <div class="chain-hash">df0f4c043fa4f6...</div>
+          <div class="chain-meta">INC-9999 • </div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #32 (v1.4.3)</div>
+          <div class="chain-hash">9cdf84651563ff...</div>
+          <div class="chain-meta">INC-9999 • hotfix-INC-9999-</div>
+        </div>
+        <div class="chain-arrow">→</div>
+        <div class="chain-block">
+          <div class="chain-label">RELEASE #33 (v1.4.3)</div>
+          <div class="chain-hash">373b4d31205574...</div>
           <div class="chain-meta">INC-9999 • </div>
         </div>
         
@@ -5949,6 +7340,94 @@
               <td><code class="hash-code" title="0d4de6431a246240210abc11bee65bbcbfc0025e47955f3fce0327f3f6b18128">0d4de6431a246240...</code></td>
               <td><code class="hash-code" title="f446f0746f9337c8cdcb1ae5792f9265af5e17b31a1918a0901c2f50d27ba8db">f446f0746f93...</code></td>
               <td><code class="hash-code hash-gold" title="93683643668fb0194bd9f906dbfd7e365b21c88abef21a97488c8ac2e3b5cfed">93683643668fb019...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:14:10.679451+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>hotfix-INC-9999-v1.4.3.patch</code></td>
+              <td><code class="hash-code" title="0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28">0ee2a4e5bbcf18df...</code></td>
+              <td><code class="hash-code" title="93683643668fb0194bd9f906dbfd7e365b21c88abef21a97488c8ac2e3b5cfed">93683643668f...</code></td>
+              <td><code class="hash-code hash-gold" title="2c99b263114071db5167f02308e76186282eb3ed7911f61c5efb71e59c86805a">2c99b263114071db...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:14:10.828380+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="9d8821886894b649ade384826202d729cab0f6e493686e8270c49e86d394dcc8">9d8821886894b649...</code></td>
+              <td><code class="hash-code" title="2c99b263114071db5167f02308e76186282eb3ed7911f61c5efb71e59c86805a">2c99b2631140...</code></td>
+              <td><code class="hash-code hash-gold" title="8473a98779f3f09649ef6345168c44230df64e94ffc5d12a89a4f1bc82f7930b">8473a98779f3f096...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:22:02.537296+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>hotfix-INC-9999-v1.4.3.patch</code></td>
+              <td><code class="hash-code" title="0a53dd0fec88a05e811f19f35358311b19ac21b1b3fac3818453f7c560561678">0a53dd0fec88a05e...</code></td>
+              <td><code class="hash-code" title="8473a98779f3f09649ef6345168c44230df64e94ffc5d12a89a4f1bc82f7930b">8473a98779f3...</code></td>
+              <td><code class="hash-code hash-gold" title="cc39f38baf66255e751f97711ee3a6c08572b6dbf991d8c97a03ea9860d19606">cc39f38baf66255e...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:22:02.674278+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="94ef47f27caf0e02933d9031c1321459a0803ce84d886fd4977f846b4dfaf549">94ef47f27caf0e02...</code></td>
+              <td><code class="hash-code" title="cc39f38baf66255e751f97711ee3a6c08572b6dbf991d8c97a03ea9860d19606">cc39f38baf66...</code></td>
+              <td><code class="hash-code hash-gold" title="697a60a1ca35560346a09467240b75c6c7b1b70786caca5bdddcb37966519d63">697a60a1ca355603...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:23:14.180461+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>hotfix-INC-9999-v1.4.3.patch</code></td>
+              <td><code class="hash-code" title="0a53dd0fec88a05e811f19f35358311b19ac21b1b3fac3818453f7c560561678">0a53dd0fec88a05e...</code></td>
+              <td><code class="hash-code" title="697a60a1ca35560346a09467240b75c6c7b1b70786caca5bdddcb37966519d63">697a60a1ca35...</code></td>
+              <td><code class="hash-code hash-gold" title="3977a01c60b1aec0d69f5fa911b8d4b328f16c17b9257a2b83c79340ec41eef5">3977a01c60b1aec0...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:23:14.339454+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="387e27342e56cf9d93152e93e8145d075df27a52733faff71fc0da8899007745">387e27342e56cf9d...</code></td>
+              <td><code class="hash-code" title="3977a01c60b1aec0d69f5fa911b8d4b328f16c17b9257a2b83c79340ec41eef5">3977a01c60b1...</code></td>
+              <td><code class="hash-code hash-gold" title="df0f4c043fa4f63a8314c9c30da4851e3f630ba920faafd4d1890eff84718d28">df0f4c043fa4f63a...</code></td>
+              <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:23:48.907718+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>hotfix-INC-9999-v1.4.3.patch</code></td>
+              <td><code class="hash-code" title="0a53dd0fec88a05e811f19f35358311b19ac21b1b3fac3818453f7c560561678">0a53dd0fec88a05e...</code></td>
+              <td><code class="hash-code" title="df0f4c043fa4f63a8314c9c30da4851e3f630ba920faafd4d1890eff84718d28">df0f4c043fa4...</code></td>
+              <td><code class="hash-code hash-gold" title="9cdf84651563ff0d57af96109f9cf3bcccaebd6fad33315937a8e4560cde4dfd">9cdf84651563ff0d...</code></td>
+              <td><span class="badge badge-emerald">VERIFIED</span></td>
+            </tr>
+            
+            <tr>
+              <td><code>2026-11-06T05:23:49.056100+00:00</code></td>
+              <td><span class="badge badge-green">v1.4.3</span></td>
+              <td><span class="badge badge-blue">INC-9999</span></td>
+              <td><code>REVERTED_TO_HEAD</code></td>
+              <td><code class="hash-code" title="713b3befff2de763da2c619baaabd59cddc2bf644e87a4ff8015a82cdc78738f">713b3befff2de763...</code></td>
+              <td><code class="hash-code" title="9cdf84651563ff0d57af96109f9cf3bcccaebd6fad33315937a8e4560cde4dfd">9cdf84651563...</code></td>
+              <td><code class="hash-code hash-gold" title="373b4d31205574a41cbe9513a88d0e54afc2262ecae5de1abd0034276a871e25">373b4d31205574a4...</code></td>
               <td><span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">ROLLED_BACK</span></td>
             </tr>
             

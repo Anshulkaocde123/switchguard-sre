@@ -1,9 +1,9 @@
 {
   "incident_id": "INC-9999",
   "current_state": "CIRCUIT_BROKEN",
-  "updated_at": "2026-11-06T05:12:44.783546+00:00",
+  "updated_at": "2026-11-06T05:23:49.129849+00:00",
   "retry_count": 2,
-  "scrub_latency_ms": 7.68,
+  "scrub_latency_ms": 9.07,
   "incidents": {
     "INC-8041": {
       "created_at": "2026-11-05T17:16:09.665033+00:00",
@@ -124,12 +124,19 @@
           "agent": "sre-sentinel",
           "timestamp": "2026-11-06T05:02:33.590836+00:00",
           "message": "Log sanitized via switchguard-cli in 40.91ms"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:14:09.765139+00:00",
+          "message": "Log sanitized via switchguard-cli in 34.47ms"
         }
       ],
       "circuit_breaker_tripped": false,
-      "updated_at": "2026-11-06T05:02:33.590836+00:00",
+      "updated_at": "2026-11-06T05:14:09.765139+00:00",
       "retry_count": 0,
-      "scrub_latency_ms": 40.91
+      "scrub_latency_ms": 34.47
     },
     "INC-9999": {
       "current_state": "ROLLED_BACK",
@@ -265,12 +272,96 @@
           "agent": "commander",
           "timestamp": "2026-11-06T05:12:44.724585+00:00",
           "message": "Human-in-the-loop rollback executed for v1.4.3: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:14:10.312650+00:00",
+          "message": "Log sanitized via switchguard-cli in 6.92ms"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-06T05:14:10.679451+00:00",
+          "message": "Hotfix release v1.4.3 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-06T05:14:10.828380+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.3: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:22:02.213497+00:00",
+          "message": "Log sanitized via switchguard-cli in 6.3ms"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-06T05:22:02.537296+00:00",
+          "message": "Hotfix release v1.4.3 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-06T05:22:02.674278+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.3: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:23:13.793192+00:00",
+          "message": "Log sanitized via switchguard-cli in 7.33ms"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-06T05:23:14.180461+00:00",
+          "message": "Hotfix release v1.4.3 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-06T05:23:14.339454+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.3: cart_service.py reverted to HEAD"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:23:48.391320+00:00",
+          "message": "Log sanitized via switchguard-cli in 9.07ms"
+        },
+        {
+          "from_state": "PATCH_VERIFIED",
+          "to_state": "RELEASED",
+          "agent": "sre-clerk",
+          "timestamp": "2026-11-06T05:23:48.907718+00:00",
+          "message": "Hotfix release v1.4.3 successfully deployed and audited"
+        },
+        {
+          "from_state": "RELEASED",
+          "to_state": "ROLLED_BACK",
+          "agent": "commander",
+          "timestamp": "2026-11-06T05:23:49.056100+00:00",
+          "message": "Human-in-the-loop rollback executed for v1.4.3: cart_service.py reverted to HEAD"
         }
       ],
       "circuit_breaker_tripped": false,
-      "updated_at": "2026-11-06T05:12:44.724585+00:00",
+      "updated_at": "2026-11-06T05:23:49.056100+00:00",
       "retry_count": 0,
-      "scrub_latency_ms": 7.68
+      "scrub_latency_ms": 9.07
     },
     "INC-STORM-05": {
       "current_state": "SANITIZED",
@@ -403,10 +494,61 @@
       "retry_count": 0,
       "scrub_latency_ms": 6.92
     },
+    "INC-STORM-06": {
+      "current_state": "SANITIZED",
+      "created_at": "2026-11-06T05:22:01.788625+00:00",
+      "attempt_counts": {
+        "reproduce": 0,
+        "verify": 0,
+        "pytest": 0
+      },
+      "history": [
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:22:01.788625+00:00",
+          "message": "Log sanitized via switchguard-cli in 89.82ms"
+        },
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:23:13.254390+00:00",
+          "message": "Log sanitized via switchguard-cli in 78.36ms"
+        }
+      ],
+      "circuit_breaker_tripped": false,
+      "updated_at": "2026-11-06T05:23:13.254390+00:00",
+      "retry_count": 0,
+      "scrub_latency_ms": 78.36
+    },
+    "INC-STORM-07": {
+      "current_state": "SANITIZED",
+      "created_at": "2026-11-06T05:23:47.903619+00:00",
+      "attempt_counts": {
+        "reproduce": 0,
+        "verify": 0,
+        "pytest": 0
+      },
+      "history": [
+        {
+          "from_state": "SANITIZED",
+          "to_state": "SANITIZED",
+          "agent": "sre-sentinel",
+          "timestamp": "2026-11-06T05:23:47.903619+00:00",
+          "message": "Log sanitized via switchguard-cli in 18.65ms"
+        }
+      ],
+      "circuit_breaker_tripped": false,
+      "updated_at": "2026-11-06T05:23:47.903619+00:00",
+      "retry_count": 0,
+      "scrub_latency_ms": 18.65
+    },
     "INC-TEST-CB-LOOP": {
       "current_state": "CIRCUIT_BROKEN",
-      "created_at": "2026-11-06T05:12:44.780810+00:00",
-      "updated_at": "2026-11-06T05:12:44.783546+00:00",
+      "created_at": "2026-11-06T05:23:49.124747+00:00",
+      "updated_at": "2026-11-06T05:23:49.129849+00:00",
       "attempt_counts": {
         "reproduce": 0,
         "verify": 2,
@@ -417,14 +559,14 @@
           "from_state": null,
           "to_state": "TRIAGED",
           "agent": "sre-sentinel",
-          "timestamp": "2026-11-06T05:12:44.780810+00:00",
+          "timestamp": "2026-11-06T05:23:49.124747+00:00",
           "message": "Incident created and triaged"
         },
         {
           "from_state": "CIRCUIT_BROKEN",
           "to_state": "CIRCUIT_BROKEN",
           "agent": "circuit_breaker",
-          "timestamp": "2026-11-06T05:12:44.783546+00:00",
+          "timestamp": "2026-11-06T05:23:49.129849+00:00",
           "message": "[CIRCUIT_BREAKER_TRIPPED] verify failed 2 times (max=2). Halting automated retries."
         }
       ],
