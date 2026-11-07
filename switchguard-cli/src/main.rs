@@ -1,3 +1,22 @@
+//! # switchguard-cli
+//!
+//! Out-of-band security, secret redaction, and audit verification binary for SwitchGuard SRE.
+//!
+//! ## Why this binary exists
+//! Autonomous LLM agents can be tricked by malicious log input or adversarial prompt injections.
+//! Relying on system prompt instructions or in-process Python guardrails is unreliable in production:
+//! an agent can bypass Python monkey-patches, ignore text-based guardrails, or delete test assertions.
+//!
+//! We enforce secret redaction (`scrub`), code diff safety (`verify-diff`), and audit log integrity
+//! (`verify-audit`) in a compiled Rust binary running outside the agent's Python execution environment.
+//! The agent has zero compiler access or permissions to alter this compiled binary during incident triage.
+//!
+//! ## Exit Code Contract
+//! - `0`: Check passed cleanly.
+//! - `1`: CLI usage error, invalid arguments, or filesystem I/O failure.
+//! - `2`: Security rule violation blocked (forbidden AST node, leaked secret, or hash-chain tampering).
+//! - `3`: Empty 0-byte patch rejected (prevents phantom releases).
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -262,7 +281,9 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
     }
 
     // 8. Redact IPv4 addresses with HMAC suffix -> [REDACTED_IPV4_<6char_sha256>]
-    // Strictly avoids version strings prefixed with 'v' or 'version' (e.g. v1.4.2.0, v1.4.2.1).
+    // We explicitly skip strings starting with 'v' or 'version' (such as v1.4.2.0 or version 1.4.2.1)
+    // so four-part semver release tags are not mistaken for IP addresses during rollback triage.
+    // True dotted-decimal IPv4 addresses (e.g. 192.168.1.42, 10.0.0.1) are matched and converted to HMAC tokens.
     let re_ipv4 = RE_IPV4.get_or_init(|| {
         Regex::new(
             r"(?i)\b(?:version\s*|v[.\-_]?)\d+\.\d+\.\d+(?:\.\d+)?\b|(\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)"
@@ -462,6 +483,10 @@ fn record_or_check_dedup(
     (status, count)
 }
 
+// Strip host-specific absolute path prefixes (e.g., /home/runner/..., /home/username/..., C:\...)
+// and preserve only repository workspace paths ("workspace/sandbox-app").
+// This keeps all JSON telemetry payloads, test reports, and audit manifests deterministic and
+// portable across developer laptops, Docker containers, and CI runners without environment leaks.
 fn normalize_display_path(raw_path: &str) -> String {
     let cleaned = raw_path.replace('\\', "/");
     if let Some(idx) = cleaned.find("workspace/") {
@@ -478,6 +503,14 @@ fn normalize_display_path(raw_path: &str) -> String {
     cleaned.trim_end_matches('/').to_string()
 }
 
+// Why line-by-line regex scanning is insufficient:
+// A line-based regex can be bypassed if an agent or attacker splits a call across lines
+// (e.g. `os.\n  system("id")`) or uses dynamic import syntax (`from os import system as s; s("id")`).
+// At the same time, naive regexes flag benign developer comments (`# never use os.system`).
+//
+// By invoking Python's native `ast.parse()` and traversing the Abstract Syntax Tree via `ast.walk()`,
+// we detect the actual semantic call/import nodes regardless of formatting or line breaks, while
+// comments are naturally ignored by the Python parser—guaranteeing zero false alarms on comments.
 const AST_INSPECTOR_SCRIPT: &str = r#"
 import ast
 import json

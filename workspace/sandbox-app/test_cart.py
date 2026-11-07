@@ -1,7 +1,7 @@
 """
-SwitchGuard Sandbox App — Comprehensive Test Suite
+SwitchGuard Sandbox App — Regression & War-Room Test Suite
 Validates checkout pricing, dynamic discount vouchers, sales tax engine,
-atomic inventory holds, and reproduction tests for INC-8041, INC-8042, and INC-8043.
+inventory holds, and reproduction tests for INC-8041, INC-8042, and INC-8043.
 """
 
 import pytest

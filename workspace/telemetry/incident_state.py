@@ -36,7 +36,13 @@ AGENT_PERMISSIONS = {
     "sre-clerk":    [("PATCH_VERIFIED", "RELEASED"), ("RELEASED", "ROLLED_BACK")],
 }
 
-MAX_ATTEMPTS = 2  # Circuit breaker threshold
+# Circuit breaker threshold: locks the incident into CIRCUIT_BROKEN after 2 failed attempts.
+# Why MAX_ATTEMPTS = 2:
+# If an LLM agent cannot generate a passing patch within 2 iterations, subsequent attempts
+# frequently degrade into reward-hacking (deleting assertions, monkey-patching globals) or
+# burn excessive API tokens in an infinite retry loop. Locking into CIRCUIT_BROKEN halts
+# automated agent retries and forces escalation to a human engineer.
+MAX_ATTEMPTS = 2
 
 
 def _load_state() -> dict:

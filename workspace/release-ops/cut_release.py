@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
-SwitchGuard SRE — Release Clerk & TEE Attestation Engine
-Verifies test suite pass rates, enforces out-of-band Rust AST security gate,
-computes tamper-evident SHA-256 hash chains, packages releases, and updates
-the executive dashboard.
+SwitchGuard SRE — Release Clerk & Cryptographic Release Receipt Generator
+
+Pre-Release Gating:
+Before packaging any release artifact, 4 mandatory pre-release gates must pass:
+1. Circuit Breaker Check: Verifies incident_state.json is not locked in CIRCUIT_BROKEN.
+2. Test Suite Validation: Executes `pytest -q` in sandbox-app (exit 0 required).
+3. Out-of-Band AST Gate: Runs `switchguard-cli verify-diff` (10 security & quality rules).
+4. Application Diff Presence: Confirms `cart_service.py` contains substantive code changes.
+
+Audit Chain Durability:
+Every release entry appended to `RELEASE_AUDIT.log` computes:
+    ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+Starting from genesis root (0000000000000000000000000000000000000000000000000000000000000000).
+Any single-byte modification to prior releases breaks the hash chain, detected by
+`switchguard-cli verify-audit`.
 """
 
 import contextlib
@@ -1358,7 +1369,28 @@ def execute_release(incident_id: str, version: str):
     os.makedirs(RELEASES_DIR, exist_ok=True)
     cli_bin = resolve_switchguard_bin()
 
-    # 1. Enforce test pass rate: pytest in sandbox-app must exit 0
+    # Pre-Release Check 1: Circuit Breaker Status
+    # Refuse release if incident is locked in CIRCUIT_BROKEN (exceeded MAX_ATTEMPTS=2).
+    # This prevents runaway agent loops from pushing unauthorized fixes after failing tests.
+    state_file = os.path.join(TELEMETRY_DIR, "incident_state.json")
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r") as sf:
+                s_data = json.load(sf)
+                inc_info = s_data.get("incidents", {}).get(incident_id, {})
+                if inc_info.get("current_state") == "CIRCUIT_BROKEN" or inc_info.get("circuit_breaker_tripped"):
+                    print(json.dumps({
+                        "release_status": "CIRCUIT_BROKEN",
+                        "incident_id": incident_id,
+                        "error": f"Circuit breaker is tripped for {incident_id}. Release blocked.",
+                        "exit_code": 2,
+                    }, indent=2))
+                    sys.exit(2)
+        except Exception:
+            pass
+
+    # Pre-Release Check 2: Pytest Regression Suite
+    # All unit and reproduction tests in sandbox-app must pass cleanly (exit code 0).
     pytest_proc = subprocess.run(
         ["pytest", "-q"],
         cwd=SANDBOX_DIR,
@@ -1375,7 +1407,8 @@ def execute_release(incident_id: str, version: str):
         }, indent=2))
         sys.exit(1)
 
-    # 2. Run Rust switchguard-cli verify-diff on sandbox-app
+    # Pre-Release Check 3: Out-of-Band Rust AST & Diff Gate (switchguard-cli verify-diff)
+    # Evaluates 10 AST security rules (no os.system, no eval/exec, no test tampering, no secret leaks).
     verify_proc = subprocess.run(
         [cli_bin, "verify-diff", SANDBOX_DIR],
         capture_output=True,
@@ -1391,7 +1424,9 @@ def execute_release(incident_id: str, version: str):
 
     audit_data = json.loads(verify_proc.stdout)
 
-    # 3. Verify git -C <sandbox_dir> diff HEAD -- cart_service.py is non-empty
+    # Pre-Release Check 4: Non-Empty Application Diff in cart_service.py
+    # Ensures the proposed patch actually modifies application business logic,
+    # rejecting phantom releases where only comments or unrelated files were touched.
     app_diff_proc = subprocess.run(
         ["git", "-C", SANDBOX_DIR, "diff", "HEAD", "--", "cart_service.py"],
         capture_output=True,
@@ -1437,7 +1472,12 @@ def execute_release(incident_id: str, version: str):
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # 5. Cryptographic Hash Chaining:
-    # ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+    # Each release entry binds the previous entry's SHA-256 hash, current timestamp,
+    # and the patch SHA-256:
+    #     ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+    # The chain begins at the genesis root (64 zeros: "0" * 64). If any attacker or corrupted
+    # process alters a line, changes a timestamp, or modifies a patch retroactively,
+    # all downstream ChainHashes become invalid, and `switchguard-cli verify-audit` flags exit code 2.
     genesis_hash = "0" * 64
     prev_chain_hash = genesis_hash
 

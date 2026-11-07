@@ -1,6 +1,6 @@
 """
-SwitchGuard Sandbox App — Enterprise Checkout & Order Pricing Engine
-Orchestrates multi-item pricing, dynamic discounts, flash-sale bundling,
+SwitchGuard Sandbox App — Checkout & Pricing Service
+Handles multi-item pricing, dynamic discounts, flash-sale bundling,
 sales tax calculation, and inventory hold reservations.
 """
 
@@ -16,9 +16,10 @@ def calculate_bundle_proration(
     """
     Computes dynamic flash-sale proration across bundle promotional items.
 
-    Known Vulnerability INC-8042:
+    Intentional Bug Vector INC-8042 (War-Room Testing):
     Baseline code omits a zero-quantity guard when calculating per-unit proration.
-    If bundle_qty is 0, this raises ZeroDivisionError: float division by zero.
+    If bundle_qty == 0, this raises ZeroDivisionError: float division by zero.
+    Used during war-room drills to verify automated test generation and patch verification.
     """
     if not items:
         return 0.0
@@ -26,7 +27,7 @@ def calculate_bundle_proration(
     bundle_items = [item for item in items if item.get("is_bundle", False)]
     bundle_qty = sum(item.get("quantity", 1) for item in bundle_items)
 
-    # DEFECT INC-8042: Division by zero when bundle items sum to quantity == 0
+    # Intentional defect INC-8042: Division by zero when bundle items sum to quantity == 0
     unit_proration = bundle_discount / bundle_qty
     return round(unit_proration * bundle_qty, 2)
 
@@ -40,9 +41,10 @@ def calculate_cart_total(
     """
     Calculates cart total with discount vouchers, bundle proration, and optional tax.
 
-    Known Vulnerability INC-8041:
-    Baseline v1.4.0 contains an unclamped FLAT100 discount edge case where
-    subtotal < $100 yields negative totals instead of clamping to $0.00.
+    Intentional Bug Vector INC-8041 (War-Room Testing):
+    Baseline v1.4.0 contains an unclamped FLAT100 discount:
+    When subtotal < $100 (e.g. $40), subtotal - 100.0 yields -$60.00 instead of clamping
+    at $0.00. This triggers NEGATIVE_TOTAL_CALCULATION alerts in the telemetry pipeline.
     """
     if not items:
         return 0.0
@@ -50,6 +52,7 @@ def calculate_cart_total(
     subtotal = sum(item["price"] * item.get("quantity", 1) for item in items)
 
     # Discount Code Evaluation
+    # Note: FLAT100 is unclamped in baseline to trigger INC-8041 for autonomous agent drills
     if discount_code == "FLAT100":
         total = subtotal - 100.0
     elif discount_code == "SAVE20":
@@ -76,7 +79,7 @@ def process_checkout(
     customer_info: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Full enterprise checkout orchestrator.
+    Checkout coordination pipeline entry point.
     Validates inventory availability, holds stock, computes pricing, and returns
     a cryptographically trackable order summary.
     """
@@ -149,10 +152,11 @@ def split_invoice_installments(total: float, installments: int) -> float:
     """
     Splits an invoice total into equal installment payments.
 
-    Latent Vulnerability INC-8042:
-    Omits a zero-check guard on installments parameter.
+    Intentional Bug Vector INC-8042 (War-Room Testing):
+    Omits a zero-check guard on the installments parameter.
     When installments == 0, this raises ZeroDivisionError: float division by zero.
+    Used to verify agent bug reproduction and AST-safe patching.
     """
-    # DEFECT INC-8042: Unhandled ZeroDivisionError when installments == 0
+    # Intentional defect INC-8042: Unhandled ZeroDivisionError when installments == 0
     installment_amount = total / installments
     return round(installment_amount, 2)

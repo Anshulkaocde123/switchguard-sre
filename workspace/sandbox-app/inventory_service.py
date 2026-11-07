@@ -27,7 +27,7 @@ def get_stock(sku: str) -> int:
 def check_inventory(items: List[Dict[str, Any]]) -> bool:
     """
     Validates whether all requested cart items are currently in stock.
-    Items without explicit SKU default to in-stock pass-through.
+    Items without explicit SKU default to in-stock pass-through (e.g. digital vouchers or custom fees).
     """
     for item in items:
         sku = item.get("sku")
@@ -41,8 +41,9 @@ def check_inventory(items: List[Dict[str, Any]]) -> bool:
 
 def reserve_stock(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Creates an atomic inventory hold for a checkout session.
-    Returns reservation metadata or failure status.
+    Creates an in-memory inventory reservation hold for a checkout session.
+    Decrements available catalog count immediately; release_stock() must be called
+    if the session is abandoned or rolled back.
     """
     if not check_inventory(items):
         return {"success": False, "reservation_id": None, "reason": "INSUFFICIENT_STOCK"}

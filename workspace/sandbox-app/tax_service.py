@@ -32,6 +32,8 @@ def calculate_tax(
     Calculates applicable tax rounded to two decimal places.
     Tax cannot be calculated on negative subtotals.
     """
+    # Defensive guard: negative subtotals (such as those produced by the unclamped FLAT100
+    # voucher defect in INC-8041) must never generate negative tax or credits.
     if subtotal <= 0.0 or tax_exempt:
         return 0.0
 
