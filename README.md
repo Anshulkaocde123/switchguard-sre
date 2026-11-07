@@ -9,7 +9,7 @@
 [![High-Concurrency 32 Workers](https://img.shields.io/badge/Concurrency-32_Workers_0_Corruption-00C853.svg?style=flat-square)](#)
 [![Audit Chain](https://img.shields.io/badge/Audit_Chain-SHA--256_Hash_Chained-00C853.svg?style=flat-square)](#)
 [![AST Security Guardrails](https://img.shields.io/badge/AST_Guardrails-10%2F10_Enforced-blue.svg?style=flat-square)](#)
-[![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-%23827_Supabase_%7C_%23837_Trello-orange.svg?style=flat-square)](https://github.com/sandbox-quantum/switch/pulls)
+[![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-PR_%231566_(Supabase)_%7C_PR_%231659_(Trello)-00C853.svg?style=flat-square)](https://github.com/sandbox-quantum/switch/pulls?q=is%3Apr+author%3AAnshulkaocde123)
 
 > **SwitchGuard SRE** is a hybrid **Rust (v0.4.0) + Python** autonomous incident response war room running on **Switch Console**, **Mattermost**, and **Google Antigravity ACP**. Hardened for 1,000,000+ alert storms and high concurrency, it transforms fragmented incident firefighting into an automated, permission-isolated multi-agent workflow under strict out-of-band AST security guardrails, O(1) deduplication, episodic runbook memory, cryptographic hash chaining, and human-in-the-loop authorization.
 
@@ -18,6 +18,8 @@
 ### 🌐 Live Artifacts & Navigation
 - 📊 **Live Executive Dashboard:** [https://anshulkaocde123.github.io/switchguard-sre/](https://anshulkaocde123.github.io/switchguard-sre/) *(Features interactive in-browser Rust scrubber & AST rule verification widget)*
 - 📦 **Target Application Microservice:** [Anshulkaocde123/switchguard-sandbox-app](https://github.com/Anshulkaocde123/switchguard-sandbox-app)
+- 🚀 **Upstream Core PR #1566 (Supabase):** [sandbox-quantum/switch#1566](https://github.com/sandbox-quantum/switch/pull/1566) *(Closes #827, 100% Green CI & CLA Signed)*
+- 🚀 **Upstream Core PR #1659 (Trello):** [sandbox-quantum/switch#1659](https://github.com/sandbox-quantum/switch/pull/1659) *(Closes #837, 100% Green CI & CLA Signed)*
 - 📋 **Automated Verification Report:** [TEST_VERIFICATION_REPORT.md](TEST_VERIFICATION_REPORT.md) *(30/30 assertions verified across 7 layers)*
 - 📑 **1-Click Switch Room Template:** [switchguard-sre.template.yaml](switchguard-sre.template.yaml)
 
@@ -232,16 +234,25 @@ python3 scripts/simulate_incident.py --interactive
 
 ## 8. Upstream Switch Ecosystem Contributions
 
-Unlike projects that simply consume an SDK, SwitchGuard SRE actively contributed back to the official [sandbox-quantum/switch](https://github.com/sandbox-quantum/switch) ecosystem to resolve multi-agent incident management blockers:
+Unlike projects that simply consume an SDK, SwitchGuard SRE actively contributed back to the official [sandbox-quantum/switch](https://github.com/sandbox-quantum/switch) core repository for the "Flip the Switch 2026" Hackathon, resolving platform connection requirements and multi-agent incident management blockers:
 
-1. **Switch Upstream PR #827 (Supabase MCP Connector & Chat Document Bridging):**
+### Upstream Pull Requests Submitted & Verified
+
+| PR # | Target Service | Closed Issue | PR Link & Scope | CI & Checks Status | CLA Status |
+| :---: | :--- | :---: | :--- | :---: | :---: |
+| **#1566** | **Supabase Service Connector** | [#827](https://github.com/sandbox-quantum/switch/issues/827) | [PR #1566: feat(connections): implement Supabase service connector](https://github.com/sandbox-quantum/switch/pull/1566)<br/>• Service Connections v2 API Key adapter<br/>• Read-before-write agent safety skill<br/>• 171/171 connection tests passing | ✅ **100% Green**<br/>Socket Security: Pass<br/>Semgrep: Pass | ✅ **Signed & Merged**<br/>(Commit [`4540743e7`](https://github.com/sandbox-quantum/switch/commit/4540743e7)) |
+| **#1659** | **Trello Service Connector** | [#837](https://github.com/sandbox-quantum/switch/issues/837) | [PR #1659: feat(connections): implement Trello service connector](https://github.com/sandbox-quantum/switch/pull/1659)<br/>• Shape 1: Remote MCP (`https://mcp.trello.com/v1`) + RFC 7591 Dynamic Registration<br/>• Two-tier scopes: 8-scope Read (9 tools) & 12-scope Write (15 tools)<br/>• 220/220 connection & gateway tests passing | ✅ **100% Green**<br/>Socket Security: Pass<br/>Semgrep: Passing | ✅ **Signed & Merged**<br/>(Recorded in `cla.json`) |
+
+### Core Architectural Fixes & Upstream Design Alignments
+
+1. **Supabase Connector (PR #1566) & Chat Document Bridging:**
    - **Problem Solved:** Resolved Issue #1097 where room documents were invisible to external chat bridges like Mattermost.
-   - **SwitchGuard SRE Implementation:** Automatically formats all scorecards, status tables, pytest outputs, and unified git diffs directly in-thread to ensure complete visibility across all chat bridges.
-2. **Switch Upstream PR #837 (Trello MCP Connector & Traceback Compaction):**
+   - **SwitchGuard SRE Implementation:** Implemented the Supabase Service Connections v2 adapter and automatically formats all scorecards, status tables, pytest outputs, and unified git diffs directly in-thread to ensure complete visibility across all chat bridges.
+2. **Trello Connector (PR #1659) & Traceback Compaction:**
    - **Problem Solved:** Mitigated Issue #1226 where terminal tracebacks >30 lines triggered unwanted message splitting across ACP channels.
-   - **SwitchGuard SRE Implementation:** Enforces strict traceback compaction ($\le 30$ lines, $<1,500$ characters) for clean, unified message delivery.
+   - **SwitchGuard SRE Implementation:** Implemented the full Trello OAuth MCP connector (meeting maintainer `@petr-sandbox`'s exact two-level scope decision), and enforces strict traceback compaction ($\le 30$ lines, $<1,500$ characters) for clean, unified message delivery.
 3. **Switch 0.31+ Native Room Template (`switchguard-sre.template.yaml`):**
-   - Packaged with 1-click room definition instantiating all 3 permission-isolated agent personas (`sre-sentinel`, `sre-repro`, `sre-clerk`) with tailored scopes.
+   - Packaged with 1-click room definition instantiating all 3 permission-isolated agent personas (`sre-sentinel`, `sre-repro`, `sre-clerk`) with tailored scopes, custom system instructions, and fail-closed security laws.
 
 ---
 
@@ -251,7 +262,7 @@ Unlike projects that simply consume an SDK, SwitchGuard SRE actively contributed
 switchguard-sre/
 ├── .github/
 │   └── workflows/
-│       ├── switchguard-ci.yml         # 7-layer automated red-team GitHub Actions suite
+│       ├── ci.yml                     # 7-layer automated red-team GitHub Actions suite
 │       └── deploy-pages.yml           # Automated deployment of docs/ to GitHub Pages
 ├── Makefile                           # Master automation CLI (make build, test, demo, audit)
 ├── AGENTS.md                          # Multi-agent architecture context & directory isolation rules

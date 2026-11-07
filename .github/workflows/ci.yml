@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies & Pytest
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
+          pip install pytest pyyaml
 
       - name: Build and Install switchguard-cli
         run: |

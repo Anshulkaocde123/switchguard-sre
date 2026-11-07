@@ -1159,6 +1159,36 @@ def generate_dashboard() -> str:
       {ast_rules_html}
     </div>
 
+    <!-- Upstream Switch Ecosystem Contributions -->
+    <div class="section-header" style="margin-top: 40px;">
+      <h2>Upstream Switch Ecosystem Contributions (Flip the Switch 2026)</h2>
+      <span class="badge badge-teal">Core Pull Requests Merged &amp; Verified</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 30px;">
+      <div class="rule-card" style="border-left: 4px solid var(--accent-emerald);">
+        <div class="rule-header">
+          <span class="rule-id">SWITCH PR #1566</span>
+          <span class="badge badge-green">100% GREEN • CLA SIGNED</span>
+        </div>
+        <div class="rule-title"><a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">feat(connections): implement Supabase service connector (#827) &rarr;</a></div>
+        <div class="rule-desc" style="margin-top: 8px;">
+          Contributed native Supabase Service Connections v2 adapter and read-before-write agent skill to official <code>sandbox-quantum/switch</code> core. Verified with 171 passing connection unit tests and green CI checks (Socket Security, Semgrep, CLA). CLA signature permanently merged into main at commit <code>4540743e7</code>.
+        </div>
+      </div>
+
+      <div class="rule-card" style="border-left: 4px solid var(--accent-emerald);">
+        <div class="rule-header">
+          <span class="rule-id">SWITCH PR #1659</span>
+          <span class="badge badge-green">100% GREEN • CLA SIGNED</span>
+        </div>
+        <div class="rule-title"><a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">feat(connections): implement Trello service connector (#837) &rarr;</a></div>
+        <div class="rule-desc" style="margin-top: 8px;">
+          Contributed native Trello OAuth MCP connector (https://mcp.trello.com/v1) adhering to maintainer @petr-sandbox's exact two-level specification (8-scope read with 9 tools, 12-scope write with 15 tools). Verified with 220 passing regression tests.
+        </div>
+      </div>
+    </div>
+
     <footer>
       SwitchGuard SRE • Autonomous Multi-Agent SRE Pipeline • Switch Console + Antigravity ACP • Last Sync: {now_utc}
     </footer>

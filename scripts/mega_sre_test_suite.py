@@ -157,12 +157,24 @@ def suite_1_smoke_and_environment() -> dict:
     contract_reason = ""
     target_path_out = ""
     try:
-        import yaml
-        tmpl_path = os.path.join(ROOT_DIR, "switchguard-sre.template.yaml")
-        with open(tmpl_path, "r") as f:
-            tmpl_data = yaml.safe_load(f)
+        try:
+            import yaml
+            tmpl_path = os.path.join(ROOT_DIR, "switchguard-sre.template.yaml")
+            with open(tmpl_path, "r") as f:
+                tmpl_data = yaml.safe_load(f)
+            agent_entries = tmpl_data.get("agents", [])
+            room_agents = [ag.replace("{team}", "sre") for ag in tmpl_data.get("room", {}).get("agents", [])]
+        except ImportError:
+            # Resilient fallback parser for minimal environments without PyYAML
+            import re
+            tmpl_path = os.path.join(ROOT_DIR, "switchguard-sre.template.yaml")
+            with open(tmpl_path, "r") as f:
+                content = f.read()
+            raw_agents = re.findall(r'- name:\s*["\']?([^"\'\n]+)["\']?\s+provider:[^\n]+\s+directory:\s*["\']?([^"\'\n]+)["\']?', content)
+            agent_entries = [{"name": name, "directory": d} for name, d in raw_agents]
+            raw_room = re.findall(r'agents:\s*\n((?:\s+-\s*["\']?\{team\}-[a-z]+["\']?\n)+)', content)
+            room_agents = [f"sre-{a}" for a in re.findall(r'-\s*["\']?\{team\}-([a-z]+)["\']?', raw_room[0])] if raw_room else []
 
-        agent_entries = tmpl_data.get("agents", [])
         agent_names = [a.get("name", "").replace("{team}", "sre") for a in agent_entries]
         has_sentinel = "sre-sentinel" in agent_names
         has_repro = "sre-repro" in agent_names
@@ -176,7 +188,6 @@ def suite_1_smoke_and_environment() -> dict:
                 dirs_exist = False
                 contract_reason = f"Directory {resolved_rel} does not exist on disk"
 
-        room_agents = [ag.replace("{team}", "sre") for ag in tmpl_data.get("room", {}).get("agents", [])]
         war_room_ok = "sre-sentinel" in room_agents and "sre-repro" in room_agents and "sre-clerk" in room_agents
 
         vdiff_chk = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
