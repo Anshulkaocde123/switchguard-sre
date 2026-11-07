@@ -957,7 +957,7 @@
         <li class="toc-item"><a href="#sec-4" class="toc-link">4. 10-Rule AST Verifier & Sandbox</a></li>
         <li class="toc-item"><a href="#sec-5" class="toc-link">5. Cryptographic Release Governance</a></li>
         <li class="toc-item"><a href="#sec-6" class="toc-link">6. Switch Canary & Upstream PRs</a></li>
-        <li class="toc-item"><a href="#sec-7" class="toc-link">7. 30/30 Empirical Scorecard</a></li>
+        <li class="toc-item"><a href="#sec-7" class="toc-link">7. 54/54 Empirical Scorecard</a></li>
       </ul>
 
       <div class="sidebar-meta-card">
@@ -976,7 +976,7 @@
         </div>
         <div class="meta-card-row">
           <span class="meta-card-label">Suite Verdict</span>
-          <span class="status-badge-inline">30/30 PASSING</span>
+          <span class="status-badge-inline">54/54 PASSING</span>
         </div>
         <div class="meta-card-row">
           <span class="meta-card-label">Updated</span>
@@ -1005,7 +1005,7 @@
         </div>
 
         <div class="meta-pills">
-          <span class="meta-pill meta-pill-green">✔ 30/30 Tests Passing</span>
+          <span class="meta-pill meta-pill-green">✔ 54/54 Tests Passing</span>
           <span class="meta-pill meta-pill-cyan">⚡ verify-diff p50: 49.53ms core</span>
           <span class="meta-pill meta-pill-indigo">🔒 POSIX flock 32 Workers</span>
           <a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank" class="meta-pill meta-pill-cyan">Upstream PR #1566</a>
@@ -1029,7 +1029,7 @@
           <button class="chapter-pill active" onclick="seekVideo(0, this)">⏱ 0:00 OS Boundary</button>
           <button class="chapter-pill" onclick="seekVideo(20, this)">⏱ 0:20 Live War Room INC-8041</button>
           <button class="chapter-pill" onclick="seekVideo(72, this)">⏱ 1:12 Red-Team AST Block INC-8043</button>
-          <button class="chapter-pill" onclick="seekVideo(102, this)">⏱ 1:42 30/30 Mega Suite</button>
+          <button class="chapter-pill" onclick="seekVideo(102, this)">⏱ 1:42 54/54 Mega Suite</button>
         </div>
       </div>
 
@@ -1588,9 +1588,9 @@ stateDiagram-v2
 
       <!-- SECTION 7 -->
       <section id="sec-7">
-        <h2>7. Empirical Scorecard (30/30 Assertions Across 7 Suites)</h2>
+        <h2>7. Empirical Scorecard (54/54 Assertions Across 7 Suites)</h2>
 
-        <p>To verify that every security rule, file lock, and audit chain holds under adversarial conditions, we automated an end-to-end 7-layer verification suite covering 30 exhaustive assertions.</p>
+        <p>To verify that every security rule, file lock, and audit chain holds under adversarial conditions, we automated an end-to-end 7-layer verification suite covering 54 exhaustive assertions.</p>
 
         <div class="table-wrapper">
           <table>
@@ -1609,88 +1609,95 @@ stateDiagram-v2
                 <td>Smoke & Environment Integrity (CLI binary, SHA-256 match, workspace isolation)</td>
                 <td>3</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>61.5ms</td>
+                <td>23.4ms</td>
               </tr>
               <tr>
                 <td><strong>2</strong></td>
-                <td>Unit Tests & Edge Cases (pytest cart suite, IPv4 vs. version collision)</td>
-                <td>3</td>
+                <td>Unit Tests & Edge Cases (pytest cart suite, IPv4 collision, injection heuristics, Unicode neutralization)</td>
+                <td>10</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>238.6ms</td>
+                <td>243.7ms</td>
               </tr>
               <tr>
                 <td><strong>3</strong></td>
-                <td>Adversarial Fuzzing & AST Bypass (multiline split, assert deletion, shell metachars)</td>
-                <td>11</td>
+                <td>Adversarial Fuzzing & AST Bypass (multiline split, assert deletion, exfiltration, introspection, 16 AST rules)</td>
+                <td>25</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>890.4ms</td>
+                <td>2634.8ms</td>
               </tr>
               <tr>
                 <td><strong>4</strong></td>
                 <td>High-Concurrency Alert Storm (32 parallel OS workers, POSIX flock stress)</td>
                 <td>1</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>754.5ms</td>
+                <td>714.1ms</td>
               </tr>
               <tr>
                 <td><strong>5</strong></td>
-                <td>E2E Integration & Rollback (triage, surgical patch, cut_release, audit chain)</td>
-                <td>6</td>
+                <td>E2E Integration & Rollback (triage, surgical patch, cut_release, keyed HMAC audit chain, tamper detection)</td>
+                <td>9</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>770.2ms</td>
+                <td>773.3ms</td>
               </tr>
               <tr>
                 <td><strong>6</strong></td>
                 <td>Circuit Breaker & DAG State Machine (2-strike threshold, terminal lock)</td>
                 <td>5</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>39.5ms</td>
+                <td>15.7ms</td>
               </tr>
               <tr>
                 <td><strong>7</strong></td>
-                <td>Latency & SLA Benchmarks (20 statistical iterations on Linux x86_64)</td>
+                <td>Latency & SLA Benchmarks (statistical iterations on Linux x86_64)</td>
                 <td>1</td>
                 <td><span class="status-badge-inline">PASS</span></td>
-                <td>670.4ms</td>
+                <td>528.0ms</td>
               </tr>
               <tr style="background: var(--bg-surface-elevated); font-weight: 700;">
                 <td colspan="2">TOTAL END-TO-END VERIFICATION</td>
-                <td><strong>30 / 30</strong></td>
+                <td><strong>54 / 54</strong></td>
                 <td><span class="status-badge-inline">100% PASS</span></td>
-                <td><strong>3.42s</strong></td>
+                <td><strong>~4.9s</strong></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <h3>Statistical Latency Benchmarks (20 Iterations on Linux x86_64)</h3>
-        <p>We measured execution latency across 20 iterations using high-resolution monotonic clocks:</p>
+        <h3>Statistical Latency Benchmarks (Reproducible N=50 Run on Linux x86_64)</h3>
+        <p>Measured across 50 iterations using internal high-resolution monotonic clocks (see <code>docs/BENCHMARKS.md</code> for raw data):</p>
 
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Operation</th>
-                <th>p50 Latency</th>
+                <th>Core Processing (p50)</th>
+                <th>End-to-End CLI (p50)</th>
                 <th>p95 Latency</th>
-                <th>p99 Latency</th>
                 <th>Target SLA</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><code>switchguard-cli scrub</code> (Secret Scrubbing & Deduplication)</td>
-                <td><strong>15.40ms</strong></td>
-                <td><strong>20.64ms</strong></td>
-                <td><strong>20.84ms</strong></td>
-                <td>p95 &le; 25.0ms (native core &lt; 1ms)</td>
+                <td><code>switchguard-cli scrub</code> (Duplicate Spike)</td>
+                <td><strong>8.92ms</strong></td>
+                <td><strong>10.96ms</strong></td>
+                <td>12.85ms (core) / 15.16ms (e2e)</td>
+                <td>p95 &le; 25.0ms</td>
               </tr>
               <tr>
-                <td><code>switchguard-cli verify-diff</code> (AST & Diff Inspection)</td>
-                <td><strong>8.28ms</strong></td>
-                <td><strong>13.38ms</strong></td>
-                <td><strong>14.28ms</strong></td>
-                <td>p95 &lt; 25.0ms</td>
+                <td><code>switchguard-cli verify-diff</code> (16 AST Rules)</td>
+                <td><strong>49.53ms</strong></td>
+                <td><strong>51.47ms</strong></td>
+                <td>58.22ms (core) / 60.12ms (e2e)</td>
+                <td>p95 &le; 75.0ms</td>
+              </tr>
+              <tr>
+                <td><code>switchguard-cli verify-audit</code> (Keyed HMAC Chain)</td>
+                <td><strong>1.97ms</strong></td>
+                <td><strong>3.87ms</strong></td>
+                <td>2.26ms (core) / 4.30ms (e2e)</td>
+                <td>p95 &le; 10.0ms</td>
               </tr>
             </tbody>
           </table>
@@ -1699,7 +1706,7 @@ stateDiagram-v2
         <h3>Reproduce in 60 Seconds</h3>
         <p>You can run the entire 7-layer verification suite locally with a single command:</p>
 
-        <pre><code># Run all 30 assertions across all 7 verification layers
+        <pre><code># Run all 54 assertions across all 7 verification layers
 python3 scripts/mega_sre_test_suite.py</code></pre>
 
         <p>To launch the interactive red-team drill console simulating <code>INC-8041</code> and adversarial prompt injections:</p>

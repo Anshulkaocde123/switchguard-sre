@@ -229,21 +229,21 @@ When evaluating prompt-injection logs containing shell pipe chains (`curl http:/
 
 ---
 
-## 7. 7-Layer Verification Scorecard & Latency Benchmarks (30/30 Passing)
+## 7. 7-Layer Verification Scorecard & Latency Benchmarks (54/54 Passing)
 
-The repository is validated using an automated 7-layer verification harness (`scripts/mega_sre_test_suite.py`). All 30 assertions pass:
+The repository is validated using an automated 7-layer verification harness (`scripts/mega_sre_test_suite.py`). All 54 assertions pass:
 
 | # | Testing Layer | Tests | Verdict | Runtime |
 | :--- | :--- | :---: | :---: | :---: |
-| 1 | SUITE 1: Smoke & Environment Integrity | 3 | **PASS** | 104.6ms |
-| 2 | SUITE 2: Unit Tests (pytest + Scrubber) | 3 | **PASS** | 152.9ms |
-| 3 | SUITE 3: Adversarial Fuzzing & AST Bypass | 11 | **PASS** | 473.6ms |
-| 4 | SUITE 4: High-Concurrency Alert Storm (32 Workers) | 1 | **PASS** | 567.0ms |
-| 5 | SUITE 5: End-to-End Integration & Rollback | 6 | **PASS** | 464.0ms |
-| 6 | SUITE 6: Agent Loop Prevention & Breaker | 5 | **PASS** | 17.1ms |
-| 7 | SUITE 7: Latency & Performance Benchmarks | 1 | **PASS** | 409.4ms |
+| 1 | SUITE 1: Smoke & Environment Integrity | 3 | **PASS** | 23.4ms |
+| 2 | SUITE 2: Exhaustive Unit Tests | 10 | **PASS** | 243.7ms |
+| 3 | SUITE 3: Adversarial Fuzzing & AST Bypass | 25 | **PASS** | 2634.8ms |
+| 4 | SUITE 4: High-Concurrency Alert Storm (32 Workers) | 1 | **PASS** | 714.1ms |
+| 5 | SUITE 5: End-to-End Integration & Rollback | 9 | **PASS** | 773.3ms |
+| 6 | SUITE 6: Agent Loop Prevention & Breaker | 5 | **PASS** | 15.7ms |
+| 7 | SUITE 7: Latency & Performance Benchmarks | 1 | **PASS** | 528.0ms |
 
-*Total Execution Time: ~2.18s across all 30 assertions.*
+*Total Execution Time: ~4.9s across all 54 assertions.*
 
 ### Latency Benchmarks (Reproducible $N=50$ Run)
 
@@ -272,14 +272,14 @@ Measured via [`scripts/benchmark.py`](scripts/benchmark.py) on Linux x86_64 (13t
 We contributed two core service connectors back to the official Switch repository:
 
 1. **Supabase Remote MCP Connector ([PR #1566](https://github.com/sandbox-quantum/switch/pull/1566))**:
-   - **Closes Issue #827**: Implements the Supabase Service Connections v2 adapter (`core/switch_core/connections/catalog/supabase/`) using Shape 1 remote MCP server (`https://mcp.supabase.com/mcp`).
+   - **Addresses Issue #827**: Implements the Supabase Service Connections v2 adapter (`core/switch_core/connections/catalog/supabase/`) using Shape 1 remote MCP server (`https://mcp.supabase.com/mcp`).
    - Implements dynamic OAuth client registration, `?project_ref=` project scoping, and read-only default permissions.
-   - 171/171 connection loader tests passing, CLA signed, merged into upstream core.
+   - 171/171 connection loader tests passing, CLA signed, submitted and pending upstream review (open).
 
 2. **Trello Remote MCP Connector ([PR #1659](https://github.com/sandbox-quantum/switch/pull/1659))**:
-   - **Closes Issue #837**: Implements the Trello Remote MCP connector (`core/switch_core/connections/catalog/trello/`) with RFC 7591 dynamic OAuth client registration.
+   - **Addresses Issue #837**: Implements the Trello Remote MCP connector (`core/switch_core/connections/catalog/trello/`) with RFC 7591 dynamic OAuth client registration.
    - Implements two-tier authorization (8-scope Read-only default vs. 12-scope escalated Write).
-   - 220/220 gateway tests passing, CLA signed, merged into upstream core.
+   - 220/220 gateway tests passing, CLA signed, submitted and pending upstream review (open).
 
 ### Switch Runtime Friction & Local Engineering Mitigations
 

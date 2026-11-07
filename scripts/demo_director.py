@@ -212,7 +212,7 @@ def stage_clip_3():
 def stage_clip_4():
     show_clip_header(
         clip_num=4,
-        title="Empirical 30/30 Proof, 32-Worker Concurrency & Ecosystem Close",
+        title="Empirical 54/54 Proof, 32-Worker Concurrency & Ecosystem Close",
         duration="18.0s",
         timecode="1:42 – 2:00",
         geometry="Right Terminal executing 7-layer suite, showing Upstream PR badges",
@@ -222,13 +222,13 @@ def stage_clip_4():
     print(f"{YELLOW}{BOLD}[SCREEN ACTION TIMELINE]{RESET}")
     print(f" • Focus Ubuntu Terminal.")
     print(f" • Press [ENTER] below to launch: python3 scripts/mega_sre_test_suite.py")
-    print(f" • Watch all 30 assertions across 7 layers flash green in ~3.2 seconds.")
+    print(f" • Watch all 54 assertions across 7 layers flash green in ~3.2 seconds.")
     print(f" • Conclude cleanly at exactly 2:00.\n")
 
-    print(f"{GREEN}{BOLD}[SPOKEN SCRIPT — DELIVER AS 30/30 TESTS PASS]{RESET}")
+    print(f"{GREEN}{BOLD}[SPOKEN SCRIPT — DELIVER AS 54/54 TESTS PASS]{RESET}")
     print(f"{BOLD}{'-'*80}{RESET}")
     spoken = (
-        "Our seven-layer mega test suite validates thirty deterministic assertions: "
+        "Our seven-layer mega test suite validates fifty-four deterministic assertions: "
         "thirty-two concurrent alert-storm workers with zero data corruption, multiline AST "
         "defense, and nine millisecond diff latency. "
         "We also contributed upstream connectors for Supabase PR 1566 and Trello PR 1659. "
@@ -237,7 +237,7 @@ def stage_clip_4():
     print(f"{spoken}")
     print(f"{BOLD}{'-'*80}{RESET}\n")
 
-    print(f"{RED}{BOLD}Press [ENTER] on camera to launch the 30-Assertion Mega Test Suite now...{RESET}")
+    print(f"{RED}{BOLD}Press [ENTER] on camera to launch the 54-Assertion Mega Test Suite now...{RESET}")
     input()
     subprocess.run([sys.executable, MEGA_TEST_PY], cwd=ROOT_DIR)
     print(f"\n{GREEN}{BOLD}[✔] DEMO RECORDING RUN COMPLETE! Ready for Adobe Express Pro assembly.{RESET}")

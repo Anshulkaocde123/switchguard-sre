@@ -1362,7 +1362,7 @@ def main():
         print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.END}")
         print(f"{Colors.BOLD}Total Tests Run: {total_tests} | Total Suite Execution Time: {total_elapsed:.1f}ms{Colors.END}")
 
-        overall_status = f"{Colors.GREEN}{Colors.BOLD}100% PASSED — PRODUCTION READY{Colors.END}" if all_passed else f"{Colors.RED}{Colors.BOLD}FAILED{Colors.END}"
+        overall_status = f"{Colors.GREEN}{Colors.BOLD}100% PASSED — HARDENED PROTOTYPE{Colors.END}" if all_passed else f"{Colors.RED}{Colors.BOLD}FAILED{Colors.END}"
         print(f"{Colors.BOLD}Final Scorecard Verdict: {overall_status}\n")
 
         # Generate Markdown Report TEST_VERIFICATION_REPORT.md
@@ -1418,6 +1418,12 @@ def main():
 | `AST-SEC-07` | Protected Path & Evasion Isolation | Blocks modifications to `.git/`, `.env`, and shell scripts (`*.sh`) | **ENFORCED (EXIT 2)** |
 | `AST-SEC-08` | Dynamic Evasion Isolation | Blocks `getattr()`, `builtins`, `os.popen`, `pty.spawn`, and raw `socket` | **ENFORCED (EXIT 2)** |
 | `AST-SEC-09` | Minimal Blast Radius | Rejects hotfixes adding >30 lines in production Python files (excluding comments/blank lines) | **ENFORCED (EXIT 2)** |
+| `AST-SEC-10` | No Network Exfiltration | Rejects raw sockets, urllib, http.client, requests, httpx, ftplib, smtplib, telnetlib, asyncio streams | **ENFORCED (EXIT 2)** |
+| `AST-SEC-11` | No Native Unsafe Loading | Blocks ctypes, cffi, pickle, marshal, shelve, dill | **ENFORCED (EXIT 2)** |
+| `AST-SEC-12` | Introspection Sandbox Escapes | Blocks `__subclasses__`, `__globals__`, `__mro__`, `__code__`, `globals()`, `locals()`, `vars()`, `setattr`, `delattr` | **ENFORCED (EXIT 2)** |
+| `AST-SEC-13` | No Unsafe Filesystem Access | Blocks `open()` with write/append modes, `Path.write_*`, `os.remove/rename/chmod`, access to `os.environ`, `/etc`, `~/.ssh` | **ENFORCED (EXIT 2)** |
+| `AST-SEC-14` | No Encoded/Staged Payloads | Blocks base64/codecs/zlib decodes feeding execution | **ENFORCED (EXIT 2)** |
+| `AST-SEC-15` | Production Import Allowlist | Restricts new imports in production modules to strict safe standard library allowlist | **ENFORCED (EXIT 2)** |
 
 ---
 

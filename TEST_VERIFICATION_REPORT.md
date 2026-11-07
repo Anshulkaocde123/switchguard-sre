@@ -1,10 +1,10 @@
 # SwitchGuard SRE — 7-Layer Red-Team & Verification Report
 
-**Generated**: 2026-11-07 21:08:39 UTC  
+**Generated**: 2026-11-07 22:48:22 UTC  
 **Architecture**: Switch Console + Google Antigravity ACP (Hybrid Rust v0.4.0 + Python 3.12)  
 **Overall Verdict**: **PASS (100% VERIFIED)**  
-**Total Test Assertions**: 30  
-**Total Test Suite Execution Time**: 3303.7ms  
+**Total Test Assertions**: 54  
+**Total Test Suite Execution Time**: 4925.7ms  
 
 ---
 
@@ -12,13 +12,13 @@
 
 | Suite # | Test Layer / Pillar | Assertions | Status | Duration |
 | :--- | :--- | :--- | :--- | :--- |
-| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 40.1ms |
-| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 3 | ✅ PASS | 204.0ms |
-| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 11 | ✅ PASS | 845.4ms |
-| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 829.4ms |
-| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 6 | ✅ PASS | 800.4ms |
-| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 25.9ms |
-| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 557.9ms |
+| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 44.2ms |
+| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 10 | ✅ PASS | 227.0ms |
+| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 25 | ✅ PASS | 2703.6ms |
+| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 653.7ms |
+| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 9 | ✅ PASS | 753.5ms |
+| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 17.6ms |
+| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 525.5ms |
 
 ---
 
@@ -26,8 +26,8 @@
 
 | Operation | p50 Latency | p95 Latency | p99 Latency | SLA Target | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `switchguard-cli scrub` | 12.51ms | 13.96ms | 14.11ms | p95 <= 25.0ms (core <1ms) | ✅ PASS |
-| `switchguard-cli verify-diff` | 9.68ms | 10.43ms | 11.10ms | p95 < 25.0ms | ✅ PASS |
+| `switchguard-cli scrub` | 12.09ms | 15.11ms | 15.56ms | p95 <= 25.0ms (core <1ms) | ✅ PASS |
+| `switchguard-cli verify-diff` | 9.60ms | 10.19ms | 10.19ms | p95 < 25.0ms | ✅ PASS |
 
 ---
 
@@ -45,6 +45,12 @@
 | `AST-SEC-07` | Protected Path & Evasion Isolation | Blocks modifications to `.git/`, `.env`, and shell scripts (`*.sh`) | **ENFORCED (EXIT 2)** |
 | `AST-SEC-08` | Dynamic Evasion Isolation | Blocks `getattr()`, `builtins`, `os.popen`, `pty.spawn`, and raw `socket` | **ENFORCED (EXIT 2)** |
 | `AST-SEC-09` | Minimal Blast Radius | Rejects hotfixes adding >30 lines in production Python files (excluding comments/blank lines) | **ENFORCED (EXIT 2)** |
+| `AST-SEC-10` | No Network Exfiltration | Rejects raw sockets, urllib, http.client, requests, httpx, ftplib, smtplib, telnetlib, asyncio streams | **ENFORCED (EXIT 2)** |
+| `AST-SEC-11` | No Native Unsafe Loading | Blocks ctypes, cffi, pickle, marshal, shelve, dill | **ENFORCED (EXIT 2)** |
+| `AST-SEC-12` | Introspection Sandbox Escapes | Blocks `__subclasses__`, `__globals__`, `__mro__`, `__code__`, `globals()`, `locals()`, `vars()`, `setattr`, `delattr` | **ENFORCED (EXIT 2)** |
+| `AST-SEC-13` | No Unsafe Filesystem Access | Blocks `open()` with write/append modes, `Path.write_*`, `os.remove/rename/chmod`, access to `os.environ`, `/etc`, `~/.ssh` | **ENFORCED (EXIT 2)** |
+| `AST-SEC-14` | No Encoded/Staged Payloads | Blocks base64/codecs/zlib decodes feeding execution | **ENFORCED (EXIT 2)** |
+| `AST-SEC-15` | Production Import Allowlist | Restricts new imports in production modules to strict safe standard library allowlist | **ENFORCED (EXIT 2)** |
 
 ---
 

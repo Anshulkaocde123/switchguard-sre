@@ -18,7 +18,7 @@ SwitchGuard SRE is an autonomous incident response and patch verification pipeli
 1. Telemetry Intake (@sre-sentinel): Scrubs raw crash dumps into salted HMAC correlation tokens in 8.92ms core (10.96ms end-to-end), preserves release version strings (v1.4.2.0) against IPv4 regex collisions, and enforces O(1) hash-table fault fingerprint deduplication under a POSIX fcntl.flock file mutex—suppressing 32-worker alert storms with zero duplicate LLM calls or JSON corruption.
 2. Sandbox Reproduction (@sre-repro): Enforces strict Test-Driven Development (writing the failing pytest reproduction test first in test_cart.py before patching cart_service.py), bounded by a 2-strike circuit breaker (MAX_ATTEMPTS=2). Before requesting release, it runs switchguard-cli verify-diff, which combines unified git diff parsing with Python Abstract Syntax Tree analysis (ast.walk) in 49.53ms core (51.47ms end-to-end) p50 to enforce 16 security rules—blocking eval/exec, multiline os.system splits, subprocess calls, untracked conftest.py backdoors, network exfiltration, and reward-hacking assert deletions.
 3. Cryptographic Release (@sre-clerk): Remains locked until a human Incident Commander posts explicit approval in-thread. It verifies 5 pre-release gates, exports the unified git patch, generates an attestation manifest binding binary and patch SHA-256 digests (designed to be bound to a TEE attestation; not implemented), and appends a keyed HMAC-SHA256 entry to RELEASE_AUDIT.log verified from genesis.
-4. Upstream Switch Core Contributions: Contributed two service connectors to sandbox-quantum/switch—Supabase Remote MCP Connector (PR #1566, closes Issue #827) and Trello Remote MCP Connector (PR #1659, closes Issue #837).
+4. Upstream Switch Core Contributions: Contributed two service connectors to sandbox-quantum/switch—Supabase Remote MCP Connector (PR #1566, addresses Issue #827, pending review) and Trello Remote MCP Connector (PR #1659, addresses Issue #837, pending review).
 ```
 
 ---
@@ -182,12 +182,12 @@ A 3-agent war room on Switch Console gated at the operating system boundary by a
 3. Release Ops (@sre-clerk): Human-gated release authority. Verifies 5 checks, packages unified patches, generates attestation receipts (designed to be bound to a TEE attestation; not implemented), and anchors a keyed HMAC-SHA256 chain from genesis.
 
 We also contributed two upstream core connectors to sandbox-quantum/switch:
-• PR #1566: Supabase Service Connections v2 (Closes #827, 171/171 tests)
-• PR #1659: Trello Remote MCP Connector (Closes #837, 220/220 tests)
+• PR #1566: Supabase Service Connections v2 (Addresses #827, 171/171 tests, open)
+• PR #1659: Trello Remote MCP Connector (Addresses #837, 220/220 tests, open)
 
 📺 1:57 Demo Video: https://youtu.be/a3mLn3PMPjo
 📖 Interactive Blog: https://anshulkaocde123.github.io/switchguard-sre/blog.html
-💻 GitHub (30/30 Tests Green): https://github.com/Anshulkaocde123/switchguard-sre
+💻 GitHub (54/54 Tests Green): https://github.com/Anshulkaocde123/switchguard-sre
 
 #HowISwitch #AI #RustLang #DevOps #SRE #MachineLearning #AutonomousAgents
 ```
@@ -247,12 +247,12 @@ Every release generates an attestation manifest binding the Rust binary & patch 
 #### Tweet 5 (Upstream Switch Contributions & Live Links)
 ```text
 We also contributed 2 core service connectors back to sandbox-quantum/switch:
-• PR #1566: Supabase Service Connector (Closes #827, 171/171 tests)
-• PR #1659: Trello Remote MCP Connector (Closes #837, 220/220 tests)
+• PR #1566: Supabase Service Connector (Addresses #827, 171/171 tests, open)
+• PR #1659: Trello Remote MCP Connector (Addresses #837, 220/220 tests, open)
 
 Check out the project:
 📖 Deep Dive Blog: https://anshulkaocde123.github.io/switchguard-sre/blog.html
-💻 GitHub (30/30 tests pass): https://github.com/Anshulkaocde123/switchguard-sre
+💻 GitHub (54/54 tests pass): https://github.com/Anshulkaocde123/switchguard-sre
 
 #HowISwitch
 ```

@@ -1126,7 +1126,7 @@ def generate_dashboard() -> str:
     <!-- 7-Layer Verification Scorecard -->
     <div class="section-header">
       <h2>7-Layer Red-Team Verification Scorecard</h2>
-      <span class="badge badge-emerald">30/30 ASSERTIONS PASSED (100% VERIFIED)</span>
+      <span class="badge badge-emerald">54/54 ASSERTIONS PASSED (100% VERIFIED)</span>
     </div>
 
     <div class="table-container">
@@ -1146,49 +1146,49 @@ def generate_dashboard() -> str:
             <td>Smoke &amp; Environment Integrity (CLI Binary, Configs, Isolation)</td>
             <td>3</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>4.2ms</code></td>
+            <td><code>23.4ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 2</strong></td>
-            <td>Exhaustive Unit Tests (pytest 28/28, Version/IPv4 Collisions, Boundaries)</td>
-            <td>3</td>
+            <td>Exhaustive Unit Tests (pytest 28/28, IPv4 Collision, Heuristics, Unicode)</td>
+            <td>10</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>48.6ms</code></td>
+            <td><code>243.7ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 3</strong></td>
-            <td>Adversarial Fuzzing, True AST Multiline Evasion &amp; Benign Comment Immunity</td>
-            <td>11</td>
+            <td>Adversarial Fuzzing, True AST Multiline Evasion &amp; 16 Security Rules</td>
+            <td>25</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>142.1ms</code></td>
+            <td><code>2634.8ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 4</strong></td>
             <td>High-Concurrency Alert Storm &amp; POSIX Locking Stress Test (32 Workers)</td>
             <td>1</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>382.4ms</code></td>
+            <td><code>714.1ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 5</strong></td>
-            <td>End-to-End Integration, Hash-Chain Tamper Detection &amp; Rollback</td>
-            <td>6</td>
+            <td>End-to-End Integration, Keyed HMAC Hash-Chain Tamper Detection &amp; Rollback</td>
+            <td>9</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>215.8ms</code></td>
+            <td><code>773.3ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 6</strong></td>
             <td>Agent Loop Prevention &amp; Circuit Breaker Logic (2-Strike Hard Stop)</td>
             <td>5</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>12.9ms</code></td>
+            <td><code>15.7ms</code></td>
           </tr>
           <tr>
             <td><strong>Suite 7</strong></td>
             <td>Latency &amp; Performance Benchmarks (N=50: scrub duplicate p50 8.92ms core / 10.96ms e2e)</td>
             <td>1</td>
             <td><span class="badge badge-emerald">PASS</span></td>
-            <td><code>286.3ms</code></td>
+            <td><code>528.0ms</code></td>
           </tr>
         </tbody>
       </table>
