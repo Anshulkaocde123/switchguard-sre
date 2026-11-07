@@ -16,6 +16,40 @@ An adversary can:
 - The verifier combines fast unified diff scanning with Python AST analysis (`ast.parse` / `ast.walk`).
 - Rejection is deterministic and binary (exit code 2 for security violations, exit code 3 for empty patches, exit code 0 for clean patches).
 
+### 1.3 Two-Layer Defense Architecture & Distinct Guarantees
+
+SwitchGuard SRE enforces defense-in-depth across two distinct layers with different security guarantees:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 1: INPUT-SIDE HEURISTIC SANITIZATION (switchguard-cli scrub & triage_helper.py) │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  • Salted HMAC PII/credential redaction                                                │
+│  • Unicode zero-width (\u200B) and bidirectional override (\u202E) neutralization       │
+│  • Max length (10,000 chars) and line count (120 lines) bounds enforcement             │
+│  • Random per-run untrusted-data boundary envelope (=== UNTRUSTED_BOUNDARY_<hex> ===)   │
+│  • Heuristic instruction override and shell-command pattern detection                  │
+│  GUARANTEE: Heuristic & Best-Effort. Useful for operational hygiene and early flagging,│
+│  but inherently probabilistic. Can be evaded by novel phrasing or adversarial grammar. │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                  [Agent Generates Patch]
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 2: OUTPUT-SIDE DETERMINISTIC GATE (switchguard-cli verify-diff & cut_release.py)│
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  • 16 Formal AST & Diff Security Rules (AST-SEC-00 through AST-SEC-15)                 │
+│  • Strict Import Allowlist (math, decimal, datetime, typing, dataclasses, etc.)        │
+│  • Red-to-Green TDD verification (reproduction test fails on baseline, passes on fix)  │
+│  • Keyed HMAC-SHA256 immutable release audit chaining                                  │
+│  • Binary SHA-256 integrity verification against pinned TRUSTED_BINARY_SHA256          │
+│  GUARANTEE: Deterministic, Absolute, & Out-of-Band. Enforced at the OS/binary boundary. │
+│  Even if prompt injection completely compromises the LLM, malicious code execution,  │
+│  network exfiltration, and test tampering are physically blocked before release.       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 2. Security Rules Specification & Verification Matrix

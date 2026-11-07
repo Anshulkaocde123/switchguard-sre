@@ -87,6 +87,11 @@ struct ScrubOutput {
     fault_fingerprint: String,
     occurrence_count: u64,
     normalized_file_line: String,
+    injection_suspected: bool,
+    injection_categories: Vec<String>,
+    envelope_delimiter: String,
+    untrusted_envelope: String,
+    length_truncated: bool,
 }
 
 #[derive(Serialize)]
@@ -166,8 +171,112 @@ fn compute_hmac_token(val: &str) -> String {
     hash[..6].to_string()
 }
 
-fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
-    let mut text = raw_text.to_string();
+fn sanitize_unicode_and_controls(input: &str) -> String {
+    input
+        .chars()
+        .filter(|&c| {
+            // Drop zero-width characters: \u{200B}, \u{200C}, \u{200D}, \u{FEFF}, \u{2060}
+            if c == '\u{200B}' || c == '\u{200C}' || c == '\u{200D}' || c == '\u{FEFF}' || c == '\u{2060}' {
+                return false;
+            }
+            // Drop bidirectional override characters: \u{202A}..=\u{202E}, \u{2066}..=\u{2069}
+            if ('\u{202A}'..='\u{202E}').contains(&c) || ('\u{2066}'..='\u{2069}').contains(&c) {
+                return false;
+            }
+            // Retain whitespace formatting: \t, \n, \r
+            if c == '\t' || c == '\n' || c == '\r' {
+                return true;
+            }
+            // Drop C0 control characters and DEL
+            let u = c as u32;
+            if u < 0x20 || u == 0x7F {
+                return false;
+            }
+            true
+        })
+        .collect()
+}
+
+fn enforce_log_bounds(text: &str) -> (String, bool) {
+    const MAX_LOG_CHARS: usize = 10_000;
+    const MAX_LOG_LINES: usize = 120;
+    let mut truncated = false;
+    let mut bounded_text = text.to_string();
+
+    let lines: Vec<&str> = bounded_text.lines().collect();
+    if lines.len() > MAX_LOG_LINES {
+        truncated = true;
+        bounded_text = lines[..MAX_LOG_LINES].join("\n");
+        bounded_text.push_str("\n[TRUNCATED: Exceeded maximum line limit (120 lines)]");
+    }
+
+    if bounded_text.len() > MAX_LOG_CHARS {
+        truncated = true;
+        bounded_text.truncate(MAX_LOG_CHARS);
+        bounded_text.push_str("\n[TRUNCATED: Exceeded maximum character limit (10,000 chars)]");
+    }
+
+    (bounded_text, truncated)
+}
+
+fn detect_injection_heuristics(text: &str) -> (bool, Vec<String>) {
+    let mut categories = Vec::new();
+
+    // 1. INSTRUCTION_OVERRIDE
+    let re_override = Regex::new(r"(?i)\b(?:ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|you\s+are\s+now\b|system\s+prompt\b|disregard\s+(?:all|prior|previous)\s+instructions\b)").unwrap();
+    if re_override.is_match(text) {
+        categories.push("INSTRUCTION_OVERRIDE".to_string());
+    }
+
+    // 2. SHELL_EXECUTION
+    let re_shell = Regex::new(r"(?i)(?:curl\s+[^\n|]+\|\s*(?:ba)?sh|wget\s+[^\n|]+\|\s*(?:ba)?sh|\brm\s+-rf\b|\bbash\s+-i\b|\bnc\s+-e\b|\bchmod\s+\+[xrw]\b|/bin/(?:ba)?sh\b)").unwrap();
+    if re_shell.is_match(text) {
+        categories.push("SHELL_EXECUTION".to_string());
+    }
+
+    // 3. TEST_TAMPERING
+    let re_test = Regex::new(r"(?i)\b(?:(?:modify|delete|remove|disable)\s+(?:all\s+)?(?:tests?|assertions?)|remove\s+assert|pass\s+all\s+tests)\b").unwrap();
+    if re_test.is_match(text) {
+        categories.push("TEST_TAMPERING".to_string());
+    }
+
+    // 4. TOOL_CALL_SYNTAX
+    let re_tool = Regex::new(r"(?i)(?:<tool_call>|\bfunction_call\b|Action:\s*Execute|```(?:bash|sh)\s*\n\s*(?:curl|wget|rm|bash))").unwrap();
+    if re_tool.is_match(text) {
+        categories.push("TOOL_CALL_SYNTAX".to_string());
+    }
+
+    let suspected = !categories.is_empty();
+    (suspected, categories)
+}
+
+fn create_untrusted_envelope(text: &str) -> (String, String) {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let pid = process::id();
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}:{}", now, pid).as_bytes());
+    let hex = format!("{:x}", hasher.finalize());
+    let delimiter = hex[..16].to_string();
+
+    let envelope = format!(
+        "=== UNTRUSTED_TELEMETRY_LOG_BOUNDARY_{} ===\n{}\n=== END_UNTRUSTED_TELEMETRY_LOG_BOUNDARY_{} ===",
+        delimiter, text, delimiter
+    );
+    (envelope, delimiter)
+}
+
+fn scrub_payload(raw_text: &str) -> (String, usize, String, String, bool, Vec<String>, String, String, bool) {
+    // Step 0: Neutralize Unicode zero-width / bidi / dangerous control characters
+    let clean_unicode = sanitize_unicode_and_controls(raw_text);
+
+    // Step 1: Detect injection heuristics prior to truncation
+    let (injection_suspected, injection_categories) = detect_injection_heuristics(&clean_unicode);
+
+    // Step 2: Enforce bounds on input log size and line count
+    let (mut text, length_truncated) = enforce_log_bounds(&clean_unicode);
     let mut total_redactions = 0;
 
     // 1. Redact Private Keys: -----BEGIN.*PRIVATE KEY-----
@@ -336,7 +445,7 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
         Regex::new(r"(?i)(TimeoutError|ReadTimeout|ConnectTimeout|504 Gateway Time-out)").unwrap()
     });
 
-    let classification = if re_prompt_inj.is_match(raw_text) || re_prompt_inj.is_match(&text) {
+    let classification = if injection_suspected || re_prompt_inj.is_match(raw_text) || re_prompt_inj.is_match(&text) {
         "PROMPT_INJECTION_ATTEMPT".to_string()
     } else if re_neg_total.is_match(raw_text) || re_neg_total.is_match(&text) {
         "NEGATIVE_TOTAL_CALCULATION".to_string()
@@ -352,8 +461,19 @@ fn scrub_payload(raw_text: &str) -> (String, usize, String, String) {
         "UNCLASSIFIED_RUNTIME_EXCEPTION".to_string()
     };
 
+    let (untrusted_envelope, envelope_delimiter) = create_untrusted_envelope(&text);
     let hash = format!("{:x}", Sha256::digest(text.as_bytes()));
-    (text, total_redactions, classification, hash)
+    (
+        text,
+        total_redactions,
+        classification,
+        hash,
+        injection_suspected,
+        injection_categories,
+        envelope_delimiter,
+        untrusted_envelope,
+        length_truncated,
+    )
 }
 
 fn extract_normalized_file_line(text: &str) -> String {
@@ -1538,7 +1658,17 @@ fn main() {
                 String::new()
             };
 
-            let (sanitized, count, classification, hash) = scrub_payload(&input);
+            let (
+                sanitized,
+                count,
+                classification,
+                hash,
+                injection_suspected,
+                injection_categories,
+                envelope_delimiter,
+                untrusted_envelope,
+                length_truncated,
+            ) = scrub_payload(&input);
             let normalized_file_line = extract_normalized_file_line(&input);
             let canonical_input = format!("{}{}", classification, normalized_file_line);
             let fault_fingerprint = format!("{:x}", Sha256::digest(canonical_input.as_bytes()));
@@ -1560,6 +1690,11 @@ fn main() {
                 fault_fingerprint,
                 occurrence_count,
                 normalized_file_line,
+                injection_suspected,
+                injection_categories,
+                envelope_delimiter,
+                untrusted_envelope,
+                length_truncated,
             };
 
             println!("{}", serde_json::to_string_pretty(&out).unwrap());

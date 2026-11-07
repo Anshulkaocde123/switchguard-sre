@@ -191,9 +191,11 @@ def query_runbook_memory(err_class: str) -> dict | None:
 def update_incident_state(
     incident_id: str,
     current_state: str = "SANITIZED",
-    scrub_latency_ms: float = 0.0
+    scrub_latency_ms: float = 0.0,
+    injection_suspected: bool = False,
+    injection_categories: list | None = None,
 ) -> dict:
-    """Maintains incident_state.json tracking incident_id, current_state, retry_count, scrub_latency_ms."""
+    """Maintains incident_state.json tracking incident_id, current_state, retry_count, scrub_latency_ms, injection detection."""
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     state_data = {}
     if os.path.exists(STATE_FILE):
@@ -217,6 +219,8 @@ def update_incident_state(
     state_data["updated_at"] = now_iso
     state_data["retry_count"] = retry_count
     state_data["scrub_latency_ms"] = scrub_latency_ms
+    state_data["injection_suspected"] = injection_suspected
+    state_data["injection_categories"] = injection_categories or []
 
     if "incidents" not in state_data or not isinstance(state_data["incidents"], dict):
         state_data["incidents"] = {}
@@ -232,17 +236,24 @@ def update_incident_state(
     incident_entry["updated_at"] = now_iso
     incident_entry["retry_count"] = retry_count
     incident_entry["scrub_latency_ms"] = scrub_latency_ms
+    incident_entry["injection_suspected"] = injection_suspected
+    incident_entry["injection_categories"] = injection_categories or []
     if retry_count >= 2:
         incident_entry["circuit_breaker_tripped"] = True
 
     if "history" not in incident_entry:
         incident_entry["history"] = []
+    
+    status_msg = f"Log sanitized via switchguard-cli in {scrub_latency_ms}ms"
+    if injection_suspected:
+        status_msg += f" [INJECTION_SUSPECTED: {', '.join(injection_categories or [])}]"
+
     incident_entry["history"].append({
         "from_state": incident_entry.get("current_state"),
         "to_state": current_state,
         "agent": "sre-sentinel",
         "timestamp": now_iso,
-        "message": f"Log sanitized via switchguard-cli in {scrub_latency_ms}ms"
+        "message": status_msg
     })
     state_data["incidents"][incident_id] = incident_entry
 
@@ -322,6 +333,11 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
         err_class = data.get("error_classification", data.get("error_class", "UNKNOWN"))
         dedup_status = data.get("dedup_status", "FIRST_SEEN")
         occurrence = data.get("occurrence_count", 1)
+        injection_suspected = data.get("injection_suspected", False)
+        injection_categories = data.get("injection_categories", [])
+        untrusted_envelope = data.get("untrusted_envelope", "")
+        envelope_delimiter = data.get("envelope_delimiter", "")
+        length_truncated = data.get("length_truncated", False)
 
         # 2. Query historical runbook lookup for prior resolutions matching error classification
         historical_match = query_runbook_memory(err_class)
@@ -335,6 +351,8 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
             .replace("\n", " ")
             .replace("|", "\\|")
         )
+        inj_prefix = f"[INJECTION_SUSPECTED:{','.join(injection_categories)}] " if injection_suspected else ""
+        ledger_summary = f"{inj_prefix}{summary_one_line}"
         sha = data.get("sha256", "UNKNOWN")[:12]
         redactions = data.get("redacted_count", data.get("redactions_applied", 0))
 
@@ -352,7 +370,7 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
                         f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
                     f.write(
                         f"| {timestamp} | `{incident_id}` (SPIKE #{occurrence}) | `{err_class}` | "
-                        f"{redactions} | `{sha}...` | [SUPPRESSED SPIKE #{occurrence}] {summary_one_line} |\n"
+                        f"{redactions} | `{sha}...` | [SUPPRESSED SPIKE #{occurrence}] {ledger_summary} |\n"
                     )
                     f.flush()
                     os.fsync(f.fileno())
@@ -368,6 +386,8 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
                 "fault_fingerprint": fault_fingerprint,
                 "normalized_file_line": file_line,
                 "clean_payload": summary_one_line,
+                "injection_suspected": injection_suspected,
+                "injection_categories": injection_categories,
                 "scrub_latency_ms": scrub_latency_ms,
                 "historical_runbook_match": historical_match,
                 "message": f"Alert storm suppressed in <0.5ms: spike #{occurrence} logged without waking @sre-repro."
@@ -375,7 +395,13 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
             return  # Suppress duplicate — do not wake @sre-repro
 
         # 5. Incident state machine tracking (incident_state.json)
-        state_result = update_incident_state(incident_id, current_state="SANITIZED", scrub_latency_ms=scrub_latency_ms)
+        state_result = update_incident_state(
+            incident_id,
+            current_state="SANITIZED",
+            scrub_latency_ms=scrub_latency_ms,
+            injection_suspected=injection_suspected,
+            injection_categories=injection_categories,
+        )
 
         # 6. Maintain Markdown Ledger with exclusive file lock + fsync
         with open(LEDGER_FILE, "a+") as f:
@@ -388,7 +414,7 @@ def run_triage(raw_log: str, incident_id: str = "INC-8041"):
                     f.write("| Timestamp | Incident ID | Error Class | Redactions | SHA-256 Digest | Sanitized Summary |\n")
                     f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
                 f.write(
-                    f"| {timestamp} | `{incident_id}` | `{err_class}` | {redactions} | `{sha}...` | {summary_one_line} |\n"
+                    f"| {timestamp} | `{incident_id}` | `{err_class}` | {redactions} | `{sha}...` | {ledger_summary} |\n"
                 )
                 f.flush()
                 os.fsync(f.fileno())
