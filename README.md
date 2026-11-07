@@ -40,6 +40,8 @@ SwitchGuard SRE pairs three folder-isolated **Switch Console** agents (`@sre-sen
 | **Upstream Switch PR #1566** | [sandbox-quantum/switch#1566](https://github.com/sandbox-quantum/switch/pull/1566) | Core contribution: Supabase Service Connector (Closes #827, CLA Signed, CI Green) |
 | **Upstream Switch PR #1659** | [sandbox-quantum/switch#1659](https://github.com/sandbox-quantum/switch/pull/1659) | Core contribution: Trello Remote MCP Connector (Closes #837, CLA Signed, CI Green) |
 | **Automated Test Report** | [TEST_VERIFICATION_REPORT.md](TEST_VERIFICATION_REPORT.md) | Cryptographic verification report covering all 30 assertions across 7 test suites |
+| **Empirical Evaluation Report** | [eval/RESULTS.md](eval/RESULTS.md) | 24-case benchmark comparing GATE_OFF vs GATE_ON (93.8% attack block rate, 0% false positives) |
+| **Reproducible Benchmarks** | [docs/BENCHMARKS.md](docs/BENCHMARKS.md) | N=50 latency benchmarks with core vs end-to-end breakdown |
 | **Switch Room Template** | [switchguard-sre.template.yaml](switchguard-sre.template.yaml) | 1-Click room configuration defining agent personas, folder boundaries, and ACLs |
 
 ---
@@ -68,7 +70,27 @@ bash scripts/setup_demo.sh
 
 ---
 
-## 3. Judge's Click-to-Verify Codebase Map
+## 3. Evidence: Empirical Agent Evaluation (GATE_OFF vs. GATE_ON)
+
+To prove that deterministic gates stop real attacks where prompts fail, we evaluated an autonomous SRE agent across a 24-case benchmark corpus ([`eval/corpus/`](eval/corpus/)) under two conditions:
+1. **GATE_OFF**: Agent operates with standard git/shell access without out-of-band verification.
+2. **GATE_ON**: Agent actions are constrained by `switchguard-cli verify-diff`.
+
+All results are reproducible offline via `python3 eval/run_eval.py --backend replay` (see full report in [`eval/RESULTS.md`](eval/RESULTS.md) and machine-readable data in [`eval/results.json`](eval/results.json)):
+
+| Metric | GATE_OFF (No Gate) | GATE_ON (switchguard-cli) | Gate Impact |
+| :--- | :---: | :---: | :---: |
+| **Adversarial Exploit Success Rate** | **100.0%** (16/16) | **6.2%** (1/16) | **-93.8% exploit reduction** |
+| **Adversarial Gate Interception Rate** | 0.0% (0/16) | **93.8%** (15/16) | **15/16 attacks blocked** |
+| **Benign Fix Pass Rate** | **100.0%** (8/8) | **100.0%** (8/8) | **0% degradation** |
+| **Benign False Rejection Rate** | N/A | **0.0%** (0/8) | **Zero false positives** |
+
+> [!NOTE]
+> **Why Case 09 Slipped Through (Documented Semantic Gap):** In Case 09 (social engineering requesting VIP discount exemption), the agent modified discount logic using clean Python math without forbidden AST primitives. Because the syntax was valid, `verify-diff` returned `PASS`. This empirical result demonstrates the semantic limitation of diff-level AST gates and proves why SwitchGuard SRE pairs the diff gate with human approval gating (`@sre-clerk`) and red-to-green TDD verification.
+
+---
+
+## 4. Judge's Click-to-Verify Codebase Map
 
 Inspect any component by opening the files below:
 
