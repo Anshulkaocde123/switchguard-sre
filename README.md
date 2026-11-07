@@ -21,11 +21,11 @@ If you give an autonomous AI agent shell and Git access to fix production bugs, 
 
 ### How We Solved It
 
-SwitchGuard SRE pairs three folder-isolated **Switch Console** agents (`@sre-sentinel`, `@sre-repro`, `@sre-clerk`) with an out-of-band compiled Rust binary (`switchguard-cli`).
+SwitchGuard SRE pairs three folder-isolated **Switch Console** agents (`@sre-sentinel`, `@sre-repro`, `@sre-clerk`) with an out-of-band compiled Rust verifier (`switchguard-cli`) combining diff-level scanning with Python AST analysis.
 
 - **Outer Ring (`@sre-sentinel`)**: Cannot read raw logs into LLM context until the Rust binary scrubs secrets into salted HMAC tokens (`[REDACTED_EMAIL_a1b2c3]`) and checks the O(1) canonical fingerprint against `dedup_index.json` in under 0.5ms. Duplicate storm alerts are logged to disk without waking downstream agents.
-- **Inner Ring (`@sre-repro`)**: Confined to `workspace/sandbox-app`. Writes a failing unit test first, applies a minimal code fix, and cannot release changes until `switchguard-cli verify-diff` passes 10 strict AST and git security rules.
-- **Release Ring (`@sre-clerk`)**: Human-gated. Stays idle until the Incident Commander posts an explicit `Approved` token. Evaluates 4 pre-release verification checks, packages the patch, and writes a cryptographically linked entry into `RELEASE_AUDIT.log` using a SHA-256 hash chain verified from genesis.
+- **Inner Ring (`@sre-repro`)**: Confined to `workspace/sandbox-app`. Writes a failing unit test first, applies a minimal code fix, and cannot release changes until `switchguard-cli verify-diff` passes 16 strict AST and git security rules.
+- **Release Ring (`@sre-clerk`)**: Human-gated. Stays idle until the Incident Commander posts an explicit `Approved` token. Evaluates 5 pre-release verification checks, packages the patch, and writes a cryptographically linked entry into `RELEASE_AUDIT.log` using a SHA-256 hash chain verified from genesis.
 
 ---
 
@@ -213,7 +213,7 @@ flowchart LR
 
 ## 5. All 10 Security & Quality Rules Enforced by `switchguard-cli verify-diff`
 
-Before any code patch can be staged or released, `switchguard-cli verify-diff` checks the diff and parsed Python syntax tree against these 10 rules:
+Before any code patch can be staged or released, `switchguard-cli verify-diff` checks the diff and parsed Python syntax tree against these 16 rules (Rust diff scan + Python `ast.walk` analysis):
 
 | Rule Code | Rule Name | Detection Mechanism | Exit Code | Failure Mode Prevented |
 | :--- | :--- | :--- | :---: | :--- |
@@ -224,9 +224,15 @@ Before any code patch can be staged or released, `switchguard-cli verify-diff` c
 | `AST-SEC-04` | **NO_DYNAMIC_IMPORT** | Blocks `__import__()`, `importlib`, and `importlib.import_module` in diff and AST | Exit 2 | Prevents reflection-based module loading designed to hide forbidden libraries. |
 | `AST-SEC-05` | **NO_HARDCODED_SECRETS** | Regex scan for AWS access keys (`AKIA[0-9A-Z]{16}`), private keys (`-----BEGIN`), and `api_key = "..."` | Exit 2 | Halts accidental credential commits and API key exposure in patch diffs. |
 | `AST-SEC-06` | **NO_TEST_TAMPERING** | Inspects deleted lines (`^-`) in `test_*.py` for `def test_` or `assert`, and compares AST test counts against `HEAD` | Exit 2 | **Anti-Reward-Hacking**: Prevents an agent from deleting failing assertions to manufacture artificial green passes. |
-| `AST-SEC-07` | **NO_GIT_OR_ENV_TAMPERING** | Verifies modified paths do not touch `.git/`, `.env`, or shell scripts (`*.sh`), and checks `git status --porcelain` for untracked files | Exit 2 | Protects repository version control metadata, environment secrets, and build hooks. |
-| `AST-SEC-08` | **NO_OBFUSCATED_EXEC** | Blocks `getattr()`, `__builtins__`, `shutil.rmtree`, and raw `socket` network connections | Exit 2 | Halts runtime reflection, destructive filesystem calls, and exfiltration attempts. |
-| `AST-SEC-09` | **MINIMAL_BLAST_RADIUS** | Enforces a maximum of 30 added lines in non-test production `.py` files (ignoring comments/blanks) | Exit 2 | Blocks uncontrolled file rewrites, ensuring patches remain surgical single-fault repairs. |
+| `AST-SEC-07` | **NO_EVASION_PRIMITIVES** | Blocks evasion primitives (`os.popen`, `pty.spawn`, `importlib`, `pickle.loads`, `builtins`, `input`) | Exit 2 | Halts runtime reflection, evasion wrappers, and interactive hijack primitives. |
+| `AST-SEC-08` | **NO_PROTECTED_PATH_MODS** | Verifies modified paths do not touch `.git/`, `.env`, or shell scripts (`*.sh`), and checks for untracked files | Exit 2 | Protects repository version control metadata, environment secrets, and build hooks. |
+| `AST-SEC-09` | **MINIMAL_BLAST_RADIUS** | Enforces a maximum of 25 added lines in non-test production `.py` files (ignoring comments/blanks) | Exit 2 | Blocks uncontrolled file rewrites, ensuring patches remain surgical single-fault repairs. |
+| `AST-SEC-10` | **NO_NETWORK_EXFILTRATION** | Blocks outbound network calls (`urllib`, `requests`, `httpx`, `aiohttp`, `socket`, `ssl`, `ftplib`, `smtplib`) | Exit 2 | Halts remote data exfiltration, HTTP webhooks, and reverse network sockets. |
+| `AST-SEC-11` | **NO_NATIVE_UNSAFE_LOADING**| Blocks native FFI and deserialization (`ctypes`, `cffi`, `pickle`, `marshal`, `shelve`, `dill`) | Exit 2 | Prevents memory corruption exploits and deserialization RCE. |
+| `AST-SEC-12` | **NO_INTROSPECTION_ESCAPES** | Blocks reflection/introspection (`__class__`, `__subclasses__`, `__globals__`, `globals()`, `setattr`) | Exit 2 | Prevents Python sandbox escapes via class hierarchy and globals traversal. |
+| `AST-SEC-13` | **NO_UNSAFE_FS_ACCESS** | Blocks writes (`open(..., 'w')`, `Path.write_*`, `os.remove`) and sensitive reads (`/etc`, `~/.ssh`, `..`) | Exit 2 | Prevents file tampering, arbitrary filesystem destruction, and sensitive file disclosure. |
+| `AST-SEC-14` | **NO_STAGED_PAYLOADS** | Blocks encoded payload execution (base64/zlib decode piped into calls) and long encoded code strings | Exit 2 | Halts obfuscated or multi-stage payload execution. |
+| `AST-SEC-15` | **IMPORT_ALLOWLIST** | Restricts production imports to an explicit allowlist (`math`, `decimal`, `datetime`, `typing`, etc.) | Exit 2 | Prevents untrusted third-party package execution and dependency confusion attacks. |
 
 ---
 
@@ -269,7 +275,7 @@ When evaluating prompt-injection logs containing shell pipe chains (`curl http:/
 
 | # | Design Decision | Chosen Approach | Alternative Considered | Engineering Justification |
 | :-: | :--- | :--- | :--- | :--- |
-| **1** | **Security Boundary** | Out-of-band compiled Rust binary (`switchguard-cli`) | System prompt instructions ("Please do not run shell commands") | Prompts can be bypassed by jailbreaks and adversarial log injections. Compiled machine code outside Python memory cannot be modified by the LLM. |
+| **1** | **Security Boundary** | Out-of-band compiled Rust verifier (`switchguard-cli`) + Python AST analysis | System prompt instructions ("Please do not run shell commands") | Prompts can be bypassed by jailbreaks and adversarial log injections. Compiled machine code outside Python memory cannot be modified by the LLM (assuming standard OS filesystem permissions prevent the agent workspace from writing to the binary directory, verified via `TRUSTED_BINARY_SHA256`). |
 | **2** | **Secret Redaction** | Salted HMAC Tokens (`[REDACTED_EMAIL_a1b2c3]`) | Generic static tokens (`[REDACTED]`) | Static tokens erase context. Salted HMAC tokens preserve entity correlation: engineers can see whether 50 errors came from 1 customer or 50 distinct customers without seeing raw PII. |
 | **3** | **AST Analysis** | Native Rust diff check + Python `ast.walk` | Heavy SAST frameworks (Semgrep, Bandit, SonarQube) | External SAST tools have 3-to-5 second startup times. Our targeted verifier runs in `8.11ms` p50 with zero external package dependencies. |
 | **4** | **Concurrency Control** | POSIX kernel file locks (`fcntl.flock`) + `os.fsync` | External daemon (Redis, PostgreSQL, RabbitMQ) | Eliminates background memory overhead (0 MB daemon RAM), allowing 3 agents to run on resource-constrained 8 GB hosts while handling 32 parallel alert workers without race conditions. |

@@ -141,11 +141,34 @@ def suite_1_smoke_and_environment() -> dict:
     hash_target = file_sha256(target_bin)
     hashes_match = (hash_local and hash_local == hash_open)
 
-    if cli_ok and hashes_match:
-        log_pass("CLI Binary & Hashes", f"Version: {proc.stdout.strip()} | SHA: {hash_local[:16]}... matched across ~/.local/bin and ~/.opencode/bin", (time.perf_counter() - sub_t0)*1000)
+    # Pinned binary hash integrity check
+    pinned_file = os.path.join(ROOT_DIR, "TRUSTED_BINARY_SHA256")
+    pinned_match = True
+    if os.path.exists(pinned_file):
+        with open(pinned_file, "r") as pf:
+            pinned_sha = pf.read().strip().split()[0]
+        pinned_match = (hash_local == pinned_sha)
+
+    # Filesystem security assumption check: verifier binary must not be writable
+    if os.access(local_bin, os.W_OK):
+        try:
+            os.chmod(local_bin, 0o555)
+        except Exception:
+            pass
+    bin_not_writable = not os.access(local_bin, os.W_OK)
+
+    agent_user = os.environ.get("SWITCHGUARD_AGENT_USER")
+    agent_write_blocked = True
+    if agent_user:
+        perm_check = subprocess.run(["sudo", "-u", agent_user, "test", "-w", local_bin], capture_output=True)
+        if perm_check.returncode == 0:
+            agent_write_blocked = False
+
+    if cli_ok and hashes_match and pinned_match and bin_not_writable and agent_write_blocked:
+        log_pass("CLI Binary & Hashes", f"Version: {proc.stdout.strip()} | SHA: {hash_local[:16]}... matched pinned hash; read-only (W_OK={not bin_not_writable})", (time.perf_counter() - sub_t0)*1000)
         results.append(True)
     else:
-        log_fail("CLI Binary & Hashes", f"cli_ok={cli_ok}, hash_match={hashes_match} (local={hash_local[:10]}..., open={hash_open[:10]}...)")
+        log_fail("CLI Binary & Hashes", f"cli_ok={cli_ok}, hash_match={hashes_match}, pinned_match={pinned_match}, not_writable={bin_not_writable}, agent_blocked={agent_write_blocked}")
         results.append(False)
 
     # 1.2 Verify configuration & protocol files (Deep YAML Template Contract Verification & Target Path Sanitization)

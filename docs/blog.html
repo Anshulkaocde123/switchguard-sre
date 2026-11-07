@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Why Prompt Guardrails Fail: Building an Out-of-Band Rust AST Security Gate for Autonomous SRE Agents</title>
+  <title>Why Prompt Guardrails Fail: Building an Out-of-Band Security Gate for Autonomous SRE Agents</title>
   
   <!-- Favicon / Brand Meta -->
   <meta name="description" content="How we locked three Switch Console agents inside directory-isolated trust rings, stopped multiline RCE prompt injections in 9ms, survived 32-worker alert storms with POSIX file locks, and contributed upstream to Switch Core.">
@@ -991,7 +991,7 @@
       <!-- Header -->
       <header>
         <div class="article-tagline">Systems Engineering & Security Architecture</div>
-        <h1>Why Prompt Guardrails Fail: Building an Out-of-Band Rust AST Security Gate for Autonomous SRE Agents</h1>
+        <h1>Why Prompt Guardrails Fail: Building an Out-of-Band Security Gate for Autonomous SRE Agents</h1>
         <p class="subtitle">How we locked three Switch Console agents inside directory-isolated trust rings, stopped multiline RCE prompt injections in 9ms, survived 32-worker alert storms with POSIX file locks, and contributed upstream to Switch Core.</p>
 
         <div class="byline-bar">
@@ -1105,8 +1105,8 @@ flowchart TB
         </ul>
 
         <div class="callout callout-green">
-          <div class="callout-header">Binary Boundary Guarantee</div>
-          <p>The verifier <code>switchguard-cli</code> is compiled ahead-of-time in Rust with Link-Time Optimization (<code>lto = true</code>, <code>opt-level = 3</code>, <code>codegen-units = 1</code>). The LLM execution environment has zero Rust toolchains, zero write permissions to <code>~/.local/bin</code>, and zero ability to monkey-patch or bypass the binary.</p>
+          <div class="callout-header">Binary Boundary Guarantee &amp; Architecture</div>
+          <p>The verifier <code>switchguard-cli</code> is compiled ahead-of-time in Rust with Link-Time Optimization (<code>lto = true</code>, <code>opt-level = 3</code>, <code>codegen-units = 1</code>), combining diff-level scanning with Python AST analysis. Under our operational security model, operating system filesystem permissions ensure the agent execution environment (confined to <code>workspace/sandbox-app</code>) has zero write permissions to <code>~/.local/bin</code> and cannot alter the verifier. Release packaging additionally enforces that the binary matches <code>TRUSTED_BINARY_SHA256</code>.</p>
         </div>
       </section>
 

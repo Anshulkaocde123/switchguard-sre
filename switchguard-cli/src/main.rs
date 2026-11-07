@@ -2,14 +2,24 @@
 //!
 //! Out-of-band security, secret redaction, and audit verification binary for SwitchGuard SRE.
 //!
-//! ## Why this binary exists
+//! ## Architecture: Compiled Rust Verifier + Python AST Analysis
 //! Autonomous LLM agents can be tricked by malicious log input or adversarial prompt injections.
 //! Relying on system prompt instructions or in-process Python guardrails is unreliable in production:
 //! an agent can bypass Python monkey-patches, ignore text-based guardrails, or delete test assertions.
 //!
 //! We enforce secret redaction (`scrub`), code diff safety (`verify-diff`), and audit log integrity
-//! (`verify-audit`) in a compiled Rust binary running outside the agent's Python execution environment.
-//! The agent has zero compiler access or permissions to alter this compiled binary during incident triage.
+//! (`verify-audit`) in a compiled Rust binary running out-of-band outside the agent's Python execution environment.
+//!
+//! - **Diff Scanning & Orchestration (Rust)**: High-speed unified diff parsing, line-level pattern
+//!   matching, path boundary checks, blast radius bounds, dedup file locks (`flock`), and SHA-256 hash chains.
+//! - **AST Analysis (Python helper)**: Invokes Python's built-in `ast` module (`ast.parse` / `ast.walk`)
+//!   to inspect Abstract Syntax Tree nodes for forbidden function calls, imports, reflection, and assert deletions
+//!   with zero third-party dependencies.
+//!
+//! ## Security Model & Filesystem Assumptions
+//! This gate relies on standard operating system filesystem permissions: the agent persona/sandbox
+//! (`workspace/sandbox-app`) does not have write access to the verifier binary or its parent directory.
+//! Furthermore, binary integrity is pinned and verified via `TRUSTED_BINARY_SHA256` prior to hotfix releases.
 //!
 //! ## Exit Code Contract
 //! - `0`: Check passed cleanly.

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "==> [1/5] Checking and bootstrapping SwitchGuard Rust AST, Audit & PII Verifier..."
+echo "==> [1/5] Checking and bootstrapping SwitchGuard Security, Audit & PII Verifier (Rust CLI + Python AST)..."
 CLI_FOUND=0
 if command -v switchguard-cli >/dev/null 2>&1; then
     CLI_FOUND=1
@@ -20,10 +20,26 @@ fi
 
 mkdir -p "$HOME/.local/bin" "$HOME/.opencode/bin" "$HOME/bin"
 if [ -f "$ROOT_DIR/switchguard-cli/target/release/switchguard-cli" ]; then
+    rm -f "$HOME/.local/bin/switchguard-cli" "$HOME/.opencode/bin/switchguard-cli" "$HOME/bin/switchguard-cli"
     cp "$ROOT_DIR/switchguard-cli/target/release/switchguard-cli" "$HOME/.local/bin/switchguard-cli"
     cp "$ROOT_DIR/switchguard-cli/target/release/switchguard-cli" "$HOME/.opencode/bin/switchguard-cli" 2>/dev/null || true
     cp "$ROOT_DIR/switchguard-cli/target/release/switchguard-cli" "$HOME/bin/switchguard-cli" 2>/dev/null || true
-    chmod +x "$HOME/.local/bin/switchguard-cli"
+    chmod 555 "$HOME/.local/bin/switchguard-cli"
+    sha256sum "$HOME/.local/bin/switchguard-cli" | awk '{print $1}' > "$ROOT_DIR/TRUSTED_BINARY_SHA256"
+fi
+
+# Filesystem security assumption check: verifier binary must not be writable by agent
+if [ -w "$HOME/.local/bin/switchguard-cli" ]; then
+    echo "Securing verifier permissions: enforcing chmod 555 on $HOME/.local/bin/switchguard-cli"
+    chmod 555 "$HOME/.local/bin/switchguard-cli"
+fi
+
+if [ -n "${SWITCHGUARD_AGENT_USER:-}" ]; then
+    if sudo -u "$SWITCHGUARD_AGENT_USER" test -w "$HOME/.local/bin/switchguard-cli" 2>/dev/null || \
+       sudo -u "$SWITCHGUARD_AGENT_USER" test -w "$(dirname "$HOME/.local/bin/switchguard-cli")" 2>/dev/null; then
+        echo "SECURITY ERROR: Binary or directory is writable by agent user $SWITCHGUARD_AGENT_USER!" >&2
+        exit 1
+    fi
 fi
 
 echo "==> [2/5] Resetting workspace/sandbox-app to clean baseline state..."

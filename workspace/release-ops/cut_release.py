@@ -1218,7 +1218,7 @@ def generate_dashboard() -> str:
 
     <!-- AST Security Rules -->
     <div class="section-header">
-      <h2>Out-of-Band Rust AST Security Gate (10 Active Rules)</h2>
+      <h2>Out-of-Band Security Verifier (Diff Scanner + Python AST Analysis — 16 Active Rules)</h2>
       <span class="badge badge-emerald">Deterministic Static Analysis</span>
     </div>
 
@@ -1461,6 +1461,23 @@ def generate_dashboard() -> str:
 def execute_release(incident_id: str, version: str):
     os.makedirs(RELEASES_DIR, exist_ok=True)
     cli_bin = resolve_switchguard_bin()
+
+    # Pre-Release Check 0: Trusted Verifier Binary Pin Verification
+    # Asserts the switchguard-cli binary has not been tampered with or modified.
+    pinned_hash_file = os.path.join(ROOT_DIR, "TRUSTED_BINARY_SHA256")
+    if os.path.exists(pinned_hash_file):
+        with open(pinned_hash_file, "r") as pf:
+            expected_bin_hash = pf.read().strip().split()[0]
+        with open(cli_bin, "rb") as bf:
+            actual_bin_hash = hashlib.sha256(bf.read()).hexdigest()
+        if actual_bin_hash != expected_bin_hash:
+            print(json.dumps({
+                "release_status": "BINARY_INTEGRITY_MISMATCH",
+                "incident_id": incident_id,
+                "error": f"switchguard-cli binary SHA-256 ({actual_bin_hash}) does not match pinned hash ({expected_bin_hash}) in TRUSTED_BINARY_SHA256! Aborting release.",
+                "exit_code": 2,
+            }, indent=2))
+            sys.exit(2)
 
     # Pre-Release Check 1: Circuit Breaker Status
     # Refuse release if incident is locked in CIRCUIT_BROKEN (exceeded MAX_ATTEMPTS=2).
