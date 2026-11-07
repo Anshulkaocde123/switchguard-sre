@@ -4,6 +4,7 @@
 
 *By Anshul Jain • November 2026 • 7 min read*
 
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube_(1%3A57)-FF0000.svg?style=flat-square&logo=youtube)](https://youtu.be/a3mLn3PMPjo)
 [![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-PR_%231566_%7C_PR_%231659-00C853.svg?style=flat-square)](https://github.com/sandbox-quantum/switch/pulls?q=is%3Apr+author%3AAnshulkaocde123)
 [![Tests](https://img.shields.io/badge/Tests-30%2F30_Passing-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/blob/main/TEST_VERIFICATION_REPORT.md)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
@@ -115,9 +116,16 @@ Even when a simulated compromised LLM attempted to insert `os.system("curl ... |
 Rather than treating `sandbox-quantum/switch` as an opaque black box, our team contributed core infrastructure back to the upstream platform:
 
 1. **[Upstream Switch PR #1566](https://github.com/sandbox-quantum/switch/pull/1566) (Supabase Service Connections v2)**:  
-   - Solved **Issue #827** and fixed **Issue #1097** where external chat bridges (Mattermost) failed to render Switch room documents. We implemented direct in-thread Markdown serialization for diffs, audit chains, and test scorecards. (171/171 tests passing, CLA signed).
+   - Closes **Issue #827** by implementing the native Supabase Service Connections v2 adapter (`core/switch_core/connections/catalog/supabase/`) using Shape 1 remote MCP server (`https://mcp.supabase.com/mcp`) with dynamic OAuth registration, `?project_ref=` project scoping, and read-only defaults (171/171 tests passing, CLA signed).
 2. **[Upstream Switch PR #1659](https://github.com/sandbox-quantum/switch/pull/1659) (Trello Remote MCP Connector)**:  
-   - Solved **Issue #837** and mitigated **Issue #1226** (message splitting over Switch ACP channels) by enforcing stack traceback compaction ($\le 30$ lines, $< 1,500$ characters). (220/220 tests passing, CLA signed).
+   - Closes **Issue #837** by implementing the Trello OAuth MCP connector (`core/switch_core/connections/catalog/trello/`) with RFC 7591 dynamic OAuth registration and two-tier scope separation (8-scope read-only default vs. 12-scope write escalation; 220/220 tests passing, CLA signed).
+
+## Switch Runtime Friction & Local Engineering Mitigations
+
+During live autonomous triage operations, we observed and mitigated two Switch ecosystem runtime challenges locally within SwitchGuard SRE:
+
+1. **Mattermost Bridge Room Document Rendering (Switch Issue #1097)**: External chat bridges failed to render native Switch Console room documents. We mitigated this locally by serializing unified git diffs, AST verdicts, and SHA-256 audit receipts directly as structured in-thread Markdown blocks.
+2. **ACP Channel Splitting on Long Tracebacks (Switch Issue #1226)**: Verbose pytest stack traces triggered multi-message splitting over ACP channels. We enforced strict traceback compaction ($\le 30$ lines, $< 1,500$ characters) inside `@sre-repro` before war-room dispatch.
 
 ---
 

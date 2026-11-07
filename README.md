@@ -1,6 +1,7 @@
 # SwitchGuard SRE — Autonomous Multi-Agent Incident Response War Room
 
 [![CI / 7-Layer Mega Suite](https://img.shields.io/badge/Tests-30%2F30_Passing-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/actions)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube_(1%3A57)-FF0000.svg?style=flat-square&logo=youtube)](https://youtu.be/a3mLn3PMPjo)
 [![Rust CLI v0.4.0](https://img.shields.io/badge/Rust_CLI-v0.4.0_(LTO)-DEA584.svg?style=flat-square&logo=rust)](#)
 [![verify-diff p50](https://img.shields.io/badge/verify--diff_p50-9.07ms-blue.svg?style=flat-square)](#)
 [![Concurrency 32 Workers](https://img.shields.io/badge/Concurrency-32_Workers_Verified-00C853.svg?style=flat-square)](#)
@@ -31,6 +32,7 @@ SwitchGuard SRE pairs three folder-isolated **Switch Console** agents (`@sre-sen
 
 | Resource | Link | Description |
 | :--- | :--- | :--- |
+| **Official Demo Video** | [youtu.be/a3mLn3PMPjo](https://youtu.be/a3mLn3PMPjo) | 1:57 first-principles video walkthrough of autonomous incident triage, AST gate, and hash chain |
 | **Live Observability Dashboard** | [anshulkaocde123.github.io/switchguard-sre](https://anshulkaocde123.github.io/switchguard-sre/) | Zero-RAM static dashboard with interactive in-browser Rust scrubber & AST validator |
 | **Target Application Sandbox** | [workspace/sandbox-app/](workspace/sandbox-app/) | Python pricing & checkout service with intentional war-room drill defect vectors |
 | **Upstream Switch PR #1566** | [sandbox-quantum/switch#1566](https://github.com/sandbox-quantum/switch/pull/1566) | Core contribution: Supabase Service Connector (Closes #827, CLA Signed, CI Green) |
@@ -348,16 +350,27 @@ This reverts `cart_service.py` to `HEAD` baseline, sets state to `ROLLED_BACK`, 
 
 We contributed two core service connectors back to the official Switch repository:
 
-1. **Supabase Service Connector ([PR #1566](https://github.com/sandbox-quantum/switch/pull/1566))**:
-   - **Closes Issue #827**: Implements the Supabase Service Connections v2 adapter (`core/switch_core/connections/catalog/supabase/`).
-   - Resolves Issue #1097 where external chat bridges (Mattermost) could not view room documents, ensuring status tables and diffs format directly in-thread.
-   - 171/171 connection tests passing, CLA signed, merged into upstream core.
+1. **Supabase Remote MCP Connector ([PR #1566](https://github.com/sandbox-quantum/switch/pull/1566))**:
+   - **Closes Issue #827**: Implements the Supabase Service Connections v2 adapter (`core/switch_core/connections/catalog/supabase/`) using Shape 1 remote MCP server (`https://mcp.supabase.com/mcp`).
+   - Implements dynamic OAuth client registration, `?project_ref=` project scoping, and read-only default permissions.
+   - 171/171 connection loader tests passing, CLA signed, permanently merged into upstream core.
 
-2. **Trello Service Connector ([PR #1659](https://github.com/sandbox-quantum/switch/pull/1659))**:
-   - **Closes Issue #837**: Implements the Trello Remote MCP connector (`https://mcp.trello.com/v1`) with RFC 7591 dynamic client registration.
-   - Implements two-tier authorization (8-scope Read with 9 tools, 12-scope Write with 15 tools).
-   - Mitigates Issue #1226 by enforcing traceback compaction ($\le$ 30 lines, $<$ 1,500 characters) across message channels.
-   - 220/220 gateway tests passing, CLA signed, merged into upstream core.
+2. **Trello Remote MCP Connector ([PR #1659](https://github.com/sandbox-quantum/switch/pull/1659))**:
+   - **Closes Issue #837**: Implements the Trello Remote MCP connector (`core/switch_core/connections/catalog/trello/`) with RFC 7591 dynamic OAuth client registration.
+   - Implements two-tier authorization (8-scope Read-only default vs. 12-scope escalated Write).
+   - 220/220 gateway tests passing, CLA signed, permanently merged into upstream core.
+
+### Switch Runtime Friction & Local Engineering Mitigations
+
+During live war-room operations, we observed and mitigated two Switch ecosystem runtime challenges locally within SwitchGuard SRE:
+
+1. **Mattermost Bridge Room Document Rendering (Switch Issue #1097)**:
+   - External chat bridges (Mattermost) failed to render native Switch Console room documents.
+   - **Local Mitigation**: SwitchGuard SRE serializes all unified git diffs, AST verdicts, and SHA-256 audit receipts directly as structured in-thread Markdown blocks.
+
+2. **ACP Channel Splitting on Long Tracebacks (Switch Issue #1226)**:
+   - Verbose Python `pytest` stack traces triggered multi-message splitting over ACP channels, prematurely waking downstream agents.
+   - **Local Mitigation**: Enforced deterministic traceback compaction ($\le$ 30 lines, $<$ 1,500 characters) inside `@sre-repro` (`AGENTS.md` / `SWITCH_PROTOCOL.md`) before posting to `#sre-war-room`.
 
 ---
 

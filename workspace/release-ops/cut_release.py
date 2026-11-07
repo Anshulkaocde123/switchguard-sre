@@ -398,7 +398,7 @@ def generate_dashboard() -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SwitchGuard SRE — Enterprise TEE & Incident Dashboard</title>
+  <title>SwitchGuard SRE — TEE & Incident Verification Dashboard</title>
   <style>
     :root {{
       --bg-dark: #070b13;
@@ -943,6 +943,9 @@ def generate_dashboard() -> str:
         </div>
       </div>
       <div class="header-badges">
+        <a href="https://youtu.be/a3mLn3PMPjo" target="_blank" class="status-pill" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); text-decoration: none; font-weight: 700;">
+          <span>▶ WATCH 1:57 DEMO VIDEO</span>
+        </a>
         <div class="status-pill">
           <div class="pulse-dot"></div>
           <span>TEE AUDIT ACTIVE • RUST v0.4.0</span>
@@ -1184,7 +1187,7 @@ def generate_dashboard() -> str:
         </div>
         <div class="rule-title"><a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">feat(connections): implement Supabase service connector (#827) &rarr;</a></div>
         <div class="rule-desc" style="margin-top: 8px;">
-          Contributed native Supabase Service Connections v2 adapter and read-before-write agent skill to official <code>sandbox-quantum/switch</code> core. Verified with 171 passing connection unit tests and green CI checks (Socket Security, Semgrep, CLA). CLA signature permanently merged into main at commit <code>4540743e7</code>.
+          Contributed native Supabase Service Connections v2 adapter using Shape 1 remote MCP server (<code>https://mcp.supabase.com/mcp</code>) with dynamic OAuth client registration and read-only defaults to official <code>sandbox-quantum/switch</code> core. Verified with 171 passing connection unit tests and green CI checks.
         </div>
       </div>
 
@@ -1195,7 +1198,37 @@ def generate_dashboard() -> str:
         </div>
         <div class="rule-title"><a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">feat(connections): implement Trello service connector (#837) &rarr;</a></div>
         <div class="rule-desc" style="margin-top: 8px;">
-          Contributed native Trello OAuth MCP connector (https://mcp.trello.com/v1) adhering to maintainer @petr-sandbox's exact two-level specification (8-scope read with 9 tools, 12-scope write with 15 tools). Verified with 220 passing regression tests.
+          Contributed native Trello OAuth MCP connector (<code>core/switch_core/connections/catalog/trello/</code>) implementing RFC 7591 dynamic OAuth client registration with two-tier scope separation (8-scope read-only default vs. 12-scope write escalation). Verified with 220 passing gateway tests.
+        </div>
+      </div>
+    </div>
+
+    <!-- Local Runtime Mitigations -->
+    <div class="section-header" style="margin-top: 30px;">
+      <h2>Switch Runtime Friction &amp; Local Engineering Mitigations</h2>
+      <span class="badge badge-blue">Built Inside SwitchGuard SRE</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 30px;">
+      <div class="rule-card" style="border-left: 4px solid var(--accent-cyan);">
+        <div class="rule-header">
+          <span class="rule-id">SWITCH ISSUE #1097 MITIGATION</span>
+          <span class="badge badge-blue">LOCAL RUNTIME SOLVED</span>
+        </div>
+        <div class="rule-title" style="color: #fff; font-weight: 600;">Mattermost Bridge Room Document Rendering</div>
+        <div class="rule-desc" style="margin-top: 8px;">
+          External Mattermost bridges struggled to render native Switch Console room documents. Solved locally inside SwitchGuard SRE by serializing unified git diffs, AST rule verdicts, and SHA-256 audit receipts directly as structured in-thread Markdown blocks.
+        </div>
+      </div>
+
+      <div class="rule-card" style="border-left: 4px solid var(--accent-cyan);">
+        <div class="rule-header">
+          <span class="rule-id">SWITCH ISSUE #1226 MITIGATION</span>
+          <span class="badge badge-blue">LOCAL RUNTIME SOLVED</span>
+        </div>
+        <div class="rule-title" style="color: #fff; font-weight: 600;">ACP Channel Traceback Compaction (&le;30 Lines)</div>
+        <div class="rule-desc" style="margin-top: 8px;">
+          Verbose Python pytest stack traces triggered multi-message splitting over ACP channels, prematurely waking downstream agents. Solved locally inside <code>@sre-repro</code> by enforcing strict traceback compaction (&le;30 lines, &lt;1,500 characters) before war-room dispatch.
         </div>
       </div>
     </div>

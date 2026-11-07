@@ -1,6 +1,7 @@
 # SwitchGuard SRE — Hackathon Demo Production Playbook
 **2-Minute First-Principles Submission Video Guide for the Flip the Switch Hackathon**  
-*Target Ecosystem: `sandbox-quantum/switch` | Target Duration: 120.0s (2:00 flat) | Resolution: 1920x1080 @ 60fps*
+*Target Ecosystem: `sandbox-quantum/switch` | Target Duration: 120.0s (1:57 actual) | Resolution: 1920x1080 @ 30fps*  
+**Official Demo Video:** [https://youtu.be/a3mLn3PMPjo](https://youtu.be/a3mLn3PMPjo)
 
 ---
 
@@ -350,22 +351,33 @@ To reinforce the first-principles architecture for judges, add three minimal, se
 
 ---
 
-## SECTION 5: Upstream Switch Ecosystem Proof Sheet
+## SECTION 5: Upstream Switch Ecosystem Proof Sheet & Local Mitigations
 
-When presenting Clip 4 or answering judge Q&A, reference these exact technical contributions to the core `sandbox-quantum/switch` repository:
+When presenting Clip 4 or answering judge Q&A, reference these exact technical contributions to the core `sandbox-quantum/switch` repository alongside our local runtime engineering mitigations:
 
-### 1. Upstream Switch PR #1566: Supabase Service Connections v2
+### 1. Upstream Switch Core Contributions (Submitted to `sandbox-quantum/switch`)
+
+#### A. Upstream Switch PR #1566: Supabase Service Connections v2
 - **Tracked Issue**: Closes **Issue #827** (Supabase Remote MCP OAuth Connector).
-- **Core Package**: `core/switch_core/connections/catalog/supabase/`
-- **Bug Fixed**: Resolves **Issue #1097** where external chat bridges (Mattermost) failed to render Switch Console room documents. We implemented direct in-thread Markdown serialization for diffs, audit chains, and test scorecards.
-- **Verification**: `171/171` connection tests passing, CLA signed, merged into upstream core.
+- **Core Package**: `core/switch_core/connections/catalog/supabase/` (`connection.yaml` and `skill/SKILL.md`).
+- **Architecture**: Implements Shape 1 remote MCP server (`https://mcp.supabase.com/mcp`) with dynamic OAuth client registration, `?project_ref=` project scoping, and read-only default permissions.
+- **Verification**: `171/171` connection loader tests passing, CLA signed, permanently merged into upstream core.
 
-### 2. Upstream Switch PR #1659: Trello Remote MCP Connector
+#### B. Upstream Switch PR #1659: Trello Remote MCP Connector
 - **Tracked Issue**: Closes **Issue #837** (Trello Remote MCP dynamic registration).
-- **Core Package**: `core/switch_core/connections/catalog/trello/`
-- **Security Boundary**: Implements RFC 7591 dynamic OAuth client registration with two-tier scope authorization (8-scope Read / 12-scope Write).
-- **Bug Fixed**: Enforces traceback compaction ($\le$ 30 lines, $<$ 1,500 characters) to mitigate **Issue #1226** message splitting over Switch ACP channels.
-- **Verification**: `220/220` gateway tests passing, CLA signed, merged into upstream core.
+- **Core Package**: `core/switch_core/connections/catalog/trello/` (`connection.yaml` and `skill/SKILL.md`).
+- **Security Boundary**: Implements RFC 7591 dynamic OAuth client registration with two-tier scope separation (8-scope Read-only default vs. 12-scope escalated Write).
+- **Verification**: `220/220` gateway tests passing, CLA signed, permanently merged into upstream core.
+
+### 2. Switch Runtime Friction & Local Engineering Mitigations (Built inside SwitchGuard SRE)
+
+#### A. Switch Issue #1097: External Chat Bridge Document Rendering
+- **Symptom**: External chat bridges (Mattermost) failed to render native Switch Console room documents.
+- **Local Mitigation**: SwitchGuard SRE serializes all unified git diffs, AST verdicts, and SHA-256 audit receipts directly as structured in-thread Markdown blocks.
+
+#### B. Switch Issue #1226: ACP Channel Traceback Splitting
+- **Symptom**: Verbose Python `pytest` stack traces triggered multi-message splitting over ACP channels, prematurely waking downstream agents.
+- **Local Mitigation**: Enforced strict traceback compaction ($\le$ 30 lines, $<$ 1,500 characters) inside `@sre-repro` (`AGENTS.md` / `SWITCH_PROTOCOL.md`) before posting to `#sre-war-room`.
 
 ---
 

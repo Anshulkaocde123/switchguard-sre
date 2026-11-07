@@ -57,6 +57,7 @@
       <h1>Building SwitchGuard SRE: Autonomous Incident Response with Directory-Isolated Switch Agents &amp; Compiled Rust AST Gates</h1>
       <div class="meta">By <strong>Anshul Jain</strong> • Published November 2026 • 7 min read</div>
       <div class="badges">
+        <a href="https://youtu.be/a3mLn3PMPjo" target="_blank" class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">▶ Watch Demo (1:57)</a>
         <a href="https://github.com/sandbox-quantum/switch/pulls?q=is%3Apr+author%3AAnshulkaocde123" target="_blank" class="badge badge-green">Upstream PRs #1566 | #1659</a>
         <a href="https://github.com/Anshulkaocde123/switchguard-sre" target="_blank" class="badge badge-cyan">GitHub: Anshulkaocde123/switchguard-sre</a>
         <span class="badge badge-green">30/30 Tests Passing</span>
@@ -118,8 +119,15 @@
     <h2>Upstream Contributions to the Switch Ecosystem</h2>
     <p>Rather than treating <code>sandbox-quantum/switch</code> as an opaque black box, our team contributed core infrastructure back to the upstream platform:</p>
     <ul>
-      <li><a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank"><strong>Upstream Switch PR #1566 (Supabase Service Connections v2)</strong></a>: Closes Issue #827, fixes Issue #1097 (Mattermost in-thread Markdown serialization for diffs and audit logs).</li>
-      <li><a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank"><strong>Upstream Switch PR #1659 (Trello Remote MCP Connector)</strong></a>: Closes Issue #837, mitigates Issue #1226 (traceback compaction &le; 30 lines, &lt; 1,500 chars).</li>
+      <li><a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank"><strong>Upstream Switch PR #1566 (Supabase Service Connections v2)</strong></a>: Closes Issue #827 by implementing the native Supabase Service Connections v2 adapter (<code>core/switch_core/connections/catalog/supabase/</code>) using Shape 1 remote MCP server (<code>https://mcp.supabase.com/mcp</code>) with dynamic OAuth client registration and read-only defaults (171/171 tests passing, CLA signed).</li>
+      <li><a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank"><strong>Upstream Switch PR #1659 (Trello Remote MCP Connector)</strong></a>: Closes Issue #837 by implementing the Trello OAuth MCP connector (<code>core/switch_core/connections/catalog/trello/</code>) with RFC 7591 dynamic OAuth registration and two-tier scope separation (8-scope read-only default vs. 12-scope write escalation; 220/220 tests passing, CLA signed).</li>
+    </ul>
+
+    <h2>Switch Runtime Friction &amp; Local Engineering Mitigations</h2>
+    <p>During live autonomous triage operations, we observed and mitigated two Switch ecosystem runtime challenges locally within SwitchGuard SRE:</p>
+    <ul>
+      <li><strong>Mattermost Bridge Room Document Rendering (Switch Issue #1097)</strong>: External chat bridges failed to render native Switch Console room documents. We mitigated this locally inside SwitchGuard SRE by serializing unified git diffs, AST verdicts, and SHA-256 audit receipts directly as structured in-thread Markdown blocks.</li>
+      <li><strong>ACP Channel Splitting on Long Tracebacks (Switch Issue #1226)</strong>: Verbose pytest stack traces triggered multi-message splitting over ACP channels. We enforced strict traceback compaction (&le; 30 lines, &lt; 1,500 characters) inside <code>@sre-repro</code> before war-room dispatch.</li>
     </ul>
 
     <h2>Conclusion</h2>
