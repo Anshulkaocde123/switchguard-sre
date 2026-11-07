@@ -101,9 +101,11 @@ switchguard-cli verify-audit "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log"
 # Regenerate clean executive dashboard
 python3 "$ROOT_DIR/workspace/release-ops/cut_release.py" --dashboard >/dev/null
 
-# Restore tracked ledger, audit, and release files to clean committed baseline
+# Restore tracked ledger, audit, dashboard, and report files to clean committed baseline
 git checkout HEAD -- "$ROOT_DIR/workspace/telemetry/incidents_ledger.md" \
                      "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log" \
+                     "$ROOT_DIR/docs/index.html" \
+                     "$ROOT_DIR/TEST_VERIFICATION_REPORT.md" \
                      "$ROOT_DIR/workspace/release-ops/releases/" 2>/dev/null || true
 
 echo "==> [5/5] Verifying baseline pytest suite..."
