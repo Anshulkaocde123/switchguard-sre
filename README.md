@@ -1,6 +1,7 @@
 # SwitchGuard SRE — Autonomous Multi-Agent Incident Response War Room
 
 [![CI / 7-Layer Mega Suite](https://img.shields.io/badge/Tests-30%2F30_Passing-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/actions)
+[![Technical Blog](https://img.shields.io/badge/Technical_Blog-Why_Prompt_Guardrails_Fail-06b6d4.svg?style=flat-square&logo=ghost)](https://anshulkaocde123.github.io/switchguard-sre/blog.html)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube_(1%3A57)-FF0000.svg?style=flat-square&logo=youtube)](https://youtu.be/a3mLn3PMPjo)
 [![Rust CLI v0.4.0](https://img.shields.io/badge/Rust_CLI-v0.4.0_(LTO)-DEA584.svg?style=flat-square&logo=rust)](#)
 [![verify-diff p50](https://img.shields.io/badge/verify--diff_p50-9.07ms-blue.svg?style=flat-square)](#)
@@ -32,6 +33,7 @@ SwitchGuard SRE pairs three folder-isolated **Switch Console** agents (`@sre-sen
 
 | Resource | Link | Description |
 | :--- | :--- | :--- |
+| **Technical Engineering Blog** | [anshulkaocde123.github.io/switchguard-sre/blog.html](https://anshulkaocde123.github.io/switchguard-sre/blog.html) | Deep-dive publication: *Why Prompt Guardrails Fail: Building an Out-of-Band Rust AST Security Gate for Autonomous SRE Agents* |
 | **Official Demo Video** | [youtu.be/a3mLn3PMPjo](https://youtu.be/a3mLn3PMPjo) | 1:57 first-principles video walkthrough of autonomous incident triage, AST gate, and hash chain |
 | **Live Observability Dashboard** | [anshulkaocde123.github.io/switchguard-sre](https://anshulkaocde123.github.io/switchguard-sre/) | Zero-RAM static dashboard with interactive in-browser Rust scrubber & AST validator |
 | **Target Application Sandbox** | [workspace/sandbox-app/](workspace/sandbox-app/) | Python pricing & checkout service with intentional war-room drill defect vectors |

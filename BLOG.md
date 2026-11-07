@@ -1,13 +1,14 @@
-# Building SwitchGuard SRE: Autonomous Incident Response with Directory-Isolated Switch Agents & Compiled Rust AST Gates
+# Why Prompt Guardrails Fail: Building an Out-of-Band Rust AST Security Gate for Autonomous SRE Agents
 
-**How we survived 1,000,000-alert storms, blocked adversarial prompt injection backdoors at the operating-system boundary, and contributed two upstream core connectors to Switch.**
+**How we locked three Switch Console agents inside directory-isolated trust rings, stopped multiline RCE prompt injections in 9ms, survived 32-worker alert storms with POSIX file locks, and contributed upstream to Switch Core.**
 
-*By Anshul Jain • November 2026 • 8 min read • Flip the Switch Hackathon*
+*By Anshul Jain • November 2026 • 6 min read • Stripe / Cloudflare Style Technical Report*
 
 [![CI / 7-Layer Mega Suite](https://img.shields.io/badge/Tests-30%2F30_Passing-brightgreen.svg?style=flat-square)](https://github.com/Anshulkaocde123/switchguard-sre/actions)
+[![Interactive Blog](https://img.shields.io/badge/Interactive_Blog-Read_HTML-06b6d4.svg?style=flat-square&logo=ghost)](https://anshulkaocde123.github.io/switchguard-sre/blog.html)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube_(1%3A57)-FF0000.svg?style=flat-square&logo=youtube)](https://youtu.be/a3mLn3PMPjo)
 [![Rust CLI v0.4.0](https://img.shields.io/badge/Rust_CLI-v0.4.0_(LTO)-DEA584.svg?style=flat-square&logo=rust)](#)
-[![verify-diff p50](https://img.shields.io/badge/verify--diff_p50-9.07ms-blue.svg?style=flat-square)](#)
+[![verify-diff p50](https://img.shields.io/badge/verify--diff_p50-8.28ms-blue.svg?style=flat-square)](#)
 [![Concurrency 32 Workers](https://img.shields.io/badge/Concurrency-32_Workers_Verified-00C853.svg?style=flat-square)](#)
 [![Live Control Plane](https://img.shields.io/badge/Live_Control_Plane-GitHub_Pages-00C853.svg?style=flat-square&logo=github)](https://anshulkaocde123.github.io/switchguard-sre/)
 [![Upstream Switch PRs](https://img.shields.io/badge/Upstream_Switch_PRs-PR_%231566_%7C_PR_%231659-00C853.svg?style=flat-square)](https://github.com/sandbox-quantum/switch/pulls?q=is%3Apr+author%3AAnshulkaocde123)

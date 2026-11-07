@@ -959,6 +959,20 @@ def generate_dashboard() -> str:
       </div>
     </header>
 
+    <!-- Hackathon Engineering Publication Banner -->
+    <div style="background: linear-gradient(90deg, rgba(6, 182, 212, 0.12), rgba(99, 102, 241, 0.12)); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: var(--accent-cyan); color: #041019; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;">HACKATHON BLOG</span>
+        <div>
+          <div style="font-weight: 700; font-size: 14.5px; color: #fff;">Featured Engineering Publication: Why Prompt Guardrails Fail</div>
+          <div style="font-size: 12.5px; color: var(--text-secondary);">How we locked three Switch Console agents inside directory-isolated trust rings and stopped multiline RCE in 9ms.</div>
+        </div>
+      </div>
+      <a href="blog.html" class="status-pill" style="color: #fff; background: var(--accent-cyan); border-color: var(--accent-cyan); text-decoration: none; font-weight: 700; padding: 7px 15px;">
+        READ ARTICLE &amp; SANDBOX →
+      </a>
+    </div>
+
     <!-- Top KPI Cards -->
     <div class="metrics-grid">
       <div class="metric-card">
@@ -1237,7 +1251,14 @@ def generate_dashboard() -> str:
     </div>
 
     <footer>
-      SwitchGuard SRE • Autonomous Multi-Agent SRE Pipeline • Switch Console + Antigravity ACP • Last Sync: {now_utc}
+      <div style="margin-bottom: 8px;">
+        <a href="blog.html" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">📖 Engineering Blog (Why Prompt Guardrails Fail)</a> • 
+        <a href="https://youtu.be/a3mLn3PMPjo" target="_blank" style="color: var(--accent-rose); font-weight: 600; text-decoration: none;">▶ YouTube Demo (1:57)</a> • 
+        <a href="https://github.com/Anshulkaocde123/switchguard-sre" target="_blank" style="color: var(--text-secondary); text-decoration: none;">GitHub Repository</a>
+      </div>
+      <div>
+        SwitchGuard SRE • Autonomous Multi-Agent SRE Pipeline • Switch Console + Antigravity ACP • Last Sync: {now_utc}
+      </div>
     </footer>
   </div>
 
