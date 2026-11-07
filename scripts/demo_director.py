@@ -51,22 +51,18 @@ CLERK_APPROVAL_COMMAND = "@sre-clerk Approved. Cut hotfix release v1.4.2 for INC
 
 
 def copy_to_clipboard(text: str) -> bool:
-    """Attempts to copy text to system clipboard via xclip, wl-copy, or xsel."""
-    tools = [
-        (["xclip", "-selection", "clipboard"], "xclip"),
-        (["wl-copy"], "wl-copy"),
-        (["xsel", "--clipboard", "--input"], "xsel"),
-    ]
-    for cmd, name in tools:
+    import shutil, subprocess
+    for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]):
         if shutil.which(cmd[0]):
             try:
-                proc = subprocess.run(
+                proc = subprocess.Popen(
                     cmd,
-                    input=text,
-                    text=True,
-                    capture_output=True,
-                    timeout=2,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                     close_fds=True,
                 )
+                proc.communicate(input=text.encode("utf-8"), timeout=1.5)
                 if proc.returncode == 0:
                     return True
             except Exception:
