@@ -518,6 +518,43 @@ import os
 import subprocess
 import sys
 
+ALLOWED_PRODUCTION_IMPORTS = {
+    "math", "decimal", "datetime", "typing", "dataclasses",
+    "functools", "itertools", "collections", "re", "enum",
+    "copy", "string", "json", "uuid", "abc"
+}
+
+FORBIDDEN_NETWORK_MODS = {
+    "urllib", "http", "requests", "httpx", "aiohttp",
+    "ftplib", "smtplib", "telnetlib", "socket", "ssl"
+}
+
+FORBIDDEN_NATIVE_MODS = {
+    "ctypes", "_ctypes", "cffi", "pickle", "_pickle",
+    "cPickle", "marshal", "shelve", "dill"
+}
+
+FORBIDDEN_INTROSPECTION_ATTRS = {
+    "__class__", "__subclasses__", "__mro__", "__globals__",
+    "__code__", "__builtins__", "__dict__", "__bases__",
+    "__base__", "__subclasshook__"
+}
+
+FORBIDDEN_INTROSPECTION_FUNCS = {
+    "globals", "locals", "vars", "setattr", "delattr"
+}
+
+FORBIDDEN_FS_CALLS = {
+    "os.remove", "os.unlink", "os.rename", "os.replace", "os.chmod",
+    "os.chown", "os.makedirs", "os.mkdir", "os.rmdir", "os.getenv",
+    "shutil.rmtree", "shutil.move", "shutil.copy", "shutil.copytree"
+}
+
+DECODING_PRIMITIVES = {
+    "base64.b64decode", "base64.decode", "codecs.decode",
+    "zlib.decompress", "bz2.decompress", "gzip.decompress"
+}
+
 def inspect_tree(target_dir):
     findings = []
     target_path = os.path.abspath(target_dir)
@@ -562,6 +599,15 @@ def inspect_tree(target_dir):
             or "/tests/" in file_path.replace("\\", "/")
         )
 
+        # Collect docstrings to prevent false positives in string analysis
+        docstrings = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                if node.body and isinstance(node.body[0], ast.Expr):
+                    val = node.body[0].value
+                    if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                        docstrings.add(id(val))
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 lineno = getattr(node, "lineno", 0)
@@ -575,6 +621,20 @@ def inspect_tree(target_dir):
                         findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden dynamic execution primitive 'getattr' in '{rel_path}:{lineno}'")
                     elif fn_id == "system":
                         findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden shell execution primitive 'system' in '{rel_path}:{lineno}'")
+                    elif fn_id in FORBIDDEN_INTROSPECTION_FUNCS:
+                        findings.append(f"AST-SEC-12: NO_INTROSPECTION_ESCAPES — Forbidden introspection primitive '{fn_id}' in '{rel_path}:{lineno}'")
+                    elif fn_id == "type" and len(node.args) >= 3:
+                        findings.append(f"AST-SEC-12: NO_INTROSPECTION_ESCAPES — Forbidden 3-argument type() metaprogramming in '{rel_path}:{lineno}'")
+                    elif fn_id == "open":
+                        mode_val = None
+                        if len(node.args) >= 2 and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str):
+                            mode_val = node.args[1].value
+                        for kw in getattr(node, "keywords", []):
+                            if kw.arg == "mode" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                                mode_val = kw.value.value
+                        if mode_val and any(m in mode_val for m in ('w', 'a', '+', 'x')):
+                            findings.append(f"AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden write/append mode '{mode_val}' in open() in '{rel_path}:{lineno}'")
+
                 elif isinstance(node.func, ast.Attribute):
                     call_name = get_attr_chain(node.func)
                     if (
@@ -596,40 +656,139 @@ def inspect_tree(target_dir):
                     ):
                         findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden execution primitive '{call_name}' in '{rel_path}:{lineno}'")
 
+                    # AST-SEC-10: Network calls
+                    if (
+                        call_name.startswith("urllib.")
+                        or call_name.startswith("requests.")
+                        or call_name.startswith("httpx.")
+                        or call_name.startswith("http.")
+                        or call_name.startswith("socket.")
+                        or call_name in ("asyncio.open_connection", "asyncio.start_server", "asyncio.create_connection")
+                        or call_name.startswith("ftplib.")
+                        or call_name.startswith("smtplib.")
+                        or call_name.startswith("telnetlib.")
+                        or call_name.startswith("ssl.")
+                    ):
+                        findings.append(f"AST-SEC-10: NO_NETWORK_EXFILTRATION — Forbidden network invocation '{call_name}' in '{rel_path}:{lineno}'")
+
+                    # AST-SEC-11: Native unsafe loading
+                    if (
+                        call_name.startswith("ctypes.")
+                        or call_name.startswith("cffi.")
+                        or call_name.startswith("pickle.")
+                        or call_name.startswith("_pickle.")
+                        or call_name.startswith("cPickle.")
+                        or call_name.startswith("marshal.")
+                        or call_name.startswith("shelve.")
+                        or call_name.startswith("dill.")
+                    ):
+                        findings.append(f"AST-SEC-11: NO_NATIVE_UNSAFE_LOADING — Forbidden native/unsafe loading call '{call_name}' in '{rel_path}:{lineno}'")
+
+                    # AST-SEC-13: Filesystem modifications & environment reads
+                    if (
+                        call_name in FORBIDDEN_FS_CALLS
+                        or call_name.endswith(".write_text")
+                        or call_name.endswith(".write_bytes")
+                        or call_name.startswith("os.environ.")
+                    ):
+                        findings.append(f"AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden filesystem call '{call_name}' in '{rel_path}:{lineno}'")
+
+                    # AST-SEC-14: Staged decoding primitives
+                    if call_name in DECODING_PRIMITIVES:
+                        findings.append(f"AST-SEC-14: NO_STAGED_PAYLOADS — Forbidden staged decoding primitive '{call_name}' in '{rel_path}:{lineno}'")
+
                 for kw in getattr(node, "keywords", []):
                     if kw.arg == "shell":
                         val = getattr(kw.value, "value", None)
                         if val is True:
                             findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden keyword argument 'shell=True' in '{rel_path}:{lineno}'")
 
-            if not is_test_file:
+                # Check if any call argument is a call to a decoding primitive
+                for arg in getattr(node, "args", []):
+                    if isinstance(arg, ast.Call):
+                        arg_call = get_attr_chain(arg.func)
+                        if arg_call in DECODING_PRIMITIVES:
+                            findings.append(f"AST-SEC-14: NO_STAGED_PAYLOADS — Staged decode '{arg_call}' feeding into call in '{rel_path}:{lineno}'")
+
+            elif isinstance(node, ast.Attribute):
                 lineno = getattr(node, "lineno", 0)
-                if isinstance(node, ast.Import):
+                if node.attr in FORBIDDEN_INTROSPECTION_ATTRS:
+                    findings.append(f"AST-SEC-12: NO_INTROSPECTION_ESCAPES — Forbidden introspection attribute '{node.attr}' in '{rel_path}:{lineno}'")
+                elif node.attr == "environ" and isinstance(node.value, ast.Name) and node.value.id == "os":
+                    findings.append(f"AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden access to 'os.environ' in '{rel_path}:{lineno}'")
+
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if id(node) not in docstrings:
+                    lineno = getattr(node, "lineno", 0)
+                    val = node.value
+                    for sp in ("/etc/", "/etc/passwd", "/etc/shadow", "~/.ssh", ".ssh/", "/root", "/proc/", "/sys/", "../", "..\\"):
+                        if sp in val:
+                            findings.append(f"AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden sensitive path or directory traversal '{sp}' in '{rel_path}:{lineno}'")
+                            break
+
+                    val_strip = val.strip()
+                    if len(val_strip) >= 50 and len(val_strip) % 4 == 0:
+                        try:
+                            import base64
+                            decoded = base64.b64decode(val_strip, validate=True)
+                            if any(tok in decoded for tok in (b"import ", b"exec(", b"eval(", b"system(", b"subprocess", b"sh", b"curl", b"wget")):
+                                findings.append(f"AST-SEC-14: NO_STAGED_PAYLOADS — Suspected base64 encoded executable payload in string literal in '{rel_path}:{lineno}'")
+                        except Exception:
+                            pass
+
+            if isinstance(node, ast.Import):
+                lineno = getattr(node, "lineno", 0)
+                for alias in node.names:
+                    mod_name = alias.name.split(".")[0]
+                    if mod_name == "subprocess":
+                        findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import 'subprocess' in '{rel_path}:{lineno}'")
+                    elif mod_name == "pty":
+                        findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import 'pty' in '{rel_path}:{lineno}'")
+                    elif mod_name == "socket":
+                        findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import 'socket' in '{rel_path}:{lineno}'")
+                    elif mod_name == "importlib":
+                        findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import 'importlib' in '{rel_path}:{lineno}'")
+                    elif mod_name in FORBIDDEN_NETWORK_MODS:
+                        findings.append(f"AST-SEC-10: NO_NETWORK_EXFILTRATION — Forbidden network import '{mod_name}' in '{rel_path}:{lineno}'")
+                    elif mod_name in FORBIDDEN_NATIVE_MODS:
+                        findings.append(f"AST-SEC-11: NO_NATIVE_UNSAFE_LOADING — Forbidden native/unsafe import '{mod_name}' in '{rel_path}:{lineno}'")
+
+                    if not is_test_file:
+                        is_local = os.path.exists(os.path.join(search_root, f"{mod_name}.py")) or os.path.isdir(os.path.join(search_root, mod_name))
+                        if mod_name not in ALLOWED_PRODUCTION_IMPORTS and not is_local:
+                            findings.append(f"AST-SEC-15: IMPORT_ALLOWLIST — Forbidden import '{alias.name}' in '{rel_path}:{lineno}'. Not in approved production allowlist: {sorted(list(ALLOWED_PRODUCTION_IMPORTS))}")
+
+            elif isinstance(node, ast.ImportFrom):
+                lineno = getattr(node, "lineno", 0)
+                mod = node.module or ""
+                mod_root = mod.split(".")[0]
+                if mod_root == "subprocess":
+                    findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import from 'subprocess' in '{rel_path}:{lineno}'")
+                elif mod_root == "pty":
+                    findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import from 'pty' in '{rel_path}:{lineno}'")
+                elif mod_root == "socket":
+                    findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import from 'socket' in '{rel_path}:{lineno}'")
+                elif mod_root == "importlib":
+                    findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import from 'importlib' in '{rel_path}:{lineno}'")
+                elif mod_root in FORBIDDEN_NETWORK_MODS:
+                    findings.append(f"AST-SEC-10: NO_NETWORK_EXFILTRATION — Forbidden network import from '{mod}' in '{rel_path}:{lineno}'")
+                elif mod_root in FORBIDDEN_NATIVE_MODS:
+                    findings.append(f"AST-SEC-11: NO_NATIVE_UNSAFE_LOADING — Forbidden native/unsafe import from '{mod}' in '{rel_path}:{lineno}'")
+                elif mod_root == "os":
                     for alias in node.names:
-                        mod_name = alias.name.split(".")[0]
-                        if mod_name == "subprocess":
-                            findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import 'subprocess' in '{rel_path}:{lineno}'")
-                        elif mod_name == "pty":
-                            findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import 'pty' in '{rel_path}:{lineno}'")
-                        elif mod_name == "socket":
-                            findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import 'socket' in '{rel_path}:{lineno}'")
-                        elif mod_name == "importlib":
-                            findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import 'importlib' in '{rel_path}:{lineno}'")
-                elif isinstance(node, ast.ImportFrom):
-                    mod = node.module or ""
-                    mod_root = mod.split(".")[0]
-                    if mod_root == "subprocess":
-                        findings.append(f"AST-SEC-03: NO_SUBPROCESS — Forbidden import from 'subprocess' in '{rel_path}:{lineno}'")
-                    elif mod_root == "pty":
-                        findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import from 'pty' in '{rel_path}:{lineno}'")
-                    elif mod_root == "socket":
-                        findings.append(f"AST-SEC-08: NO_OBFUSCATED_EXEC — Forbidden import from 'socket' in '{rel_path}:{lineno}'")
-                    elif mod_root == "importlib":
-                        findings.append(f"AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden import from 'importlib' in '{rel_path}:{lineno}'")
-                    elif mod_root == "os":
-                        for alias in node.names:
-                            if alias.name in ("system", "popen", "spawn") or alias.name.startswith("spawn"):
-                                findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import '{alias.name}' from 'os' in '{rel_path}:{lineno}'")
+                        if alias.name in ("system", "popen", "spawn") or alias.name.startswith("spawn"):
+                            findings.append(f"AST-SEC-02: NO_OS_SYSTEM — Forbidden import '{alias.name}' from 'os' in '{rel_path}:{lineno}'")
+                        elif alias.name in ("remove", "unlink", "rename", "chmod", "environ", "getenv"):
+                            findings.append(f"AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden import '{alias.name}' from 'os' in '{rel_path}:{lineno}'")
+                elif mod_root == "asyncio":
+                    for alias in node.names:
+                        if alias.name in ("open_connection", "start_server", "create_connection"):
+                            findings.append(f"AST-SEC-10: NO_NETWORK_EXFILTRATION — Forbidden network stream import '{alias.name}' from 'asyncio' in '{rel_path}:{lineno}'")
+
+                if not is_test_file and mod_root:
+                    is_local = os.path.exists(os.path.join(search_root, f"{mod_root}.py")) or os.path.isdir(os.path.join(search_root, mod_root))
+                    if mod_root not in ALLOWED_PRODUCTION_IMPORTS and not is_local:
+                        findings.append(f"AST-SEC-15: IMPORT_ALLOWLIST — Forbidden import from '{node.module}' in '{rel_path}:{lineno}'. Not in approved production allowlist: {sorted(list(ALLOWED_PRODUCTION_IMPORTS))}")
 
         if is_test_file:
             try:
@@ -812,17 +971,34 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         }
     }
 
-    // Diff line scanning with comment awareness
+    // Diff line scanning with comment and multiline docstring awareness
     for (filename, added, _) in &file_diffs {
         let is_py = filename.ends_with(".py");
+        let mut in_multiline_doc = false;
         for raw_line in added {
             let line_content = raw_line.strip_prefix('+').unwrap_or(raw_line);
             let trimmed = line_content.trim();
 
-            let is_comment = is_py && trimmed.starts_with('#');
-
-            // Skip AST-SEC-01, 02, 03, 04, 08 regex checks if it's a Python comment line
-            if !is_comment {
+            if is_py {
+                if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
+                    let quote = if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" };
+                    if trimmed.len() >= 6 && trimmed[3..].contains(quote) {
+                        continue;
+                    } else {
+                        in_multiline_doc = !in_multiline_doc;
+                        continue;
+                    }
+                }
+                if in_multiline_doc {
+                    if trimmed.ends_with("\"\"\"") || trimmed.ends_with("'''") || trimmed.contains("\"\"\"") || trimmed.contains("'''") {
+                        in_multiline_doc = false;
+                    }
+                    continue;
+                }
+                if trimmed.starts_with('#') {
+                    continue;
+                }
+            }
                 // AST-SEC-08: NO_OBFUSCATED_EXEC — Block getattr(, __builtins__, builtins., shutil.rmtree, socket.
                 let obfuscated_tokens = [
                     ("getattr(", "Forbidden dynamic attribute access: getattr("),
@@ -865,7 +1041,46 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
                         findings.push(format!("AST-SEC-04: NO_DYNAMIC_IMPORT — Forbidden dynamic import '{}' in '{}'", token, trimmed));
                     }
                 }
-            }
+
+                // AST-SEC-10: NO_NETWORK_EXFILTRATION line tokens
+                let net_tokens = ["urllib.", "requests.", "httpx.", "http.client", "aiohttp.", "ftplib.", "smtplib.", "telnetlib."];
+                for token in &net_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-10: NO_NETWORK_EXFILTRATION — Forbidden network primitive '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-11: NO_NATIVE_UNSAFE_LOADING line tokens
+                let native_tokens = ["ctypes.", "pickle.loads", "pickle.load", "marshal.loads", "cffi.", "shelve.open", "dill."];
+                for token in &native_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-11: NO_NATIVE_UNSAFE_LOADING — Forbidden native loading primitive '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-12: NO_INTROSPECTION_ESCAPES line tokens
+                let intro_tokens = ["__class__", "__subclasses__", "__mro__", "__globals__", "__code__", "globals()", "locals()", "vars()", "setattr(", "delattr("];
+                for token in &intro_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-12: NO_INTROSPECTION_ESCAPES — Forbidden introspection primitive '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-13: NO_UNSAFE_FS_ACCESS line tokens
+                let fs_tokens = [".write_text(", ".write_bytes(", "os.remove(", "os.chmod(", "os.makedirs(", "os.environ", "/etc/passwd", "/etc/shadow", "~/.ssh", "../"];
+                for token in &fs_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-13: NO_UNSAFE_FS_ACCESS — Forbidden filesystem/path access '{}' in '{}'", token, trimmed));
+                    }
+                }
+
+                // AST-SEC-14: NO_STAGED_PAYLOADS line tokens
+                let staged_tokens = ["base64.b64decode(", "codecs.decode(", "zlib.decompress("];
+                for token in &staged_tokens {
+                    if trimmed.contains(token) {
+                        findings.push(format!("AST-SEC-14: NO_STAGED_PAYLOADS — Forbidden staged decoding '{}' in '{}'", token, trimmed));
+                    }
+                }
 
             // AST-SEC-05: NO_HARDCODED_SECRETS — AKIA[0-9A-Z]{16}, -----BEGIN, or hardcoded api_key = "..."
             let re_secret_key = RE_SECRET_KEY.get_or_init(|| {
@@ -956,6 +1171,36 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
             rule: "AST-SEC-09: MINIMAL_BLAST_RADIUS".to_string(),
             status: if app_py_lines_added > 30 { "FAIL".to_string() } else { "PASS".to_string() },
             description: "Enforces minimal blast radius: rejects hotfixes adding more than 30 lines to production .py files".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-10: NO_NETWORK_EXFILTRATION".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-10")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks network access and exfiltration (urllib, requests, httpx, sockets, asyncio streams)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-11: NO_NATIVE_UNSAFE_LOADING".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-11")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks native/unsafe code loading and deserialization (ctypes, cffi, pickle, marshal, dill)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-12: NO_INTROSPECTION_ESCAPES".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-12")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks sandbox escape via introspection (__class__, __subclasses__, globals(), setattr, metaprogramming)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-13: NO_UNSAFE_FS_ACCESS".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-13")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks filesystem writes, destructive operations, environment reading, and path traversal (/etc, ~/.ssh, ..)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-14: NO_STAGED_PAYLOADS".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-14")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Blocks encoded or staged payloads (base64/codecs/zlib decodes feeding into calls or long code strings)".to_string(),
+        },
+        VerifyRule {
+            rule: "AST-SEC-15: IMPORT_ALLOWLIST".to_string(),
+            status: if findings.iter().any(|f| f.contains("AST-SEC-15")) { "FAIL".to_string() } else { "PASS".to_string() },
+            description: "Enforces strict import allowlist for production code; unauthorized module imports are rejected".to_string(),
         },
     ];
 

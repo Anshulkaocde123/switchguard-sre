@@ -147,7 +147,10 @@ def test_scenario_4() -> dict:
     memory_file = os.path.join(TELEMETRY_DIR, "runbook_memory.json")
 
     try:
-        # 1. Apply surgical fix to cart_service.py
+        # 1. Apply surgical fix to cart_service.py and reproduction test to test_cart.py
+        with open(TEST_CART_PY, "a") as tf:
+            tf.write("\ndef test_repro_inc_8041():\n    assert calculate_cart_total([{'price': 40.0, 'quantity': 1}], discount_code='FLAT100') == 0.0\n")
+
         patched_code = original_code.replace(
             'total = subtotal - 100.0',
             'total = max(0.0, subtotal - 100.0)'

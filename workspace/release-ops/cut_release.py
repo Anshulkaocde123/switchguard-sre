@@ -108,6 +108,42 @@ AST_RULES = [
         "desc": "Limits hotfix additions in production .py files to at most 30 lines.",
         "status": "PASS",
     },
+    {
+        "id": "AST-SEC-10",
+        "name": "No Network Exfiltration",
+        "desc": "Blocks network access and exfiltration (urllib, requests, httpx, sockets, asyncio streams).",
+        "status": "PASS",
+    },
+    {
+        "id": "AST-SEC-11",
+        "name": "No Native Unsafe Loading",
+        "desc": "Blocks native/unsafe code loading and deserialization (ctypes, cffi, pickle, marshal, dill).",
+        "status": "PASS",
+    },
+    {
+        "id": "AST-SEC-12",
+        "name": "No Introspection Escapes",
+        "desc": "Blocks sandbox escape via introspection (__class__, __subclasses__, globals(), setattr, metaprogramming).",
+        "status": "PASS",
+    },
+    {
+        "id": "AST-SEC-13",
+        "name": "No Unsafe Filesystem Access",
+        "desc": "Blocks filesystem writes, destructive operations, environment reading, and path traversal (/etc, ~/.ssh, ..).",
+        "status": "PASS",
+    },
+    {
+        "id": "AST-SEC-14",
+        "name": "No Staged Payloads",
+        "desc": "Blocks encoded or staged payloads (base64/codecs/zlib decodes feeding into calls or long code strings).",
+        "status": "PASS",
+    },
+    {
+        "id": "AST-SEC-15",
+        "name": "Strict Import Allowlist",
+        "desc": "Enforces strict import allowlist for production code; unauthorized module imports are rejected.",
+        "status": "PASS",
+    },
 ]
 
 
@@ -1498,6 +1534,85 @@ def execute_release(incident_id: str, version: str):
         }, indent=2))
         sys.exit(3)
 
+    # Pre-Release Check 5: Red-to-Green Verification (TDD & Semantic Verification)
+    # Releases must include at least one new/changed reproduction test.
+    # The new test MUST fail on baseline application code (RED) and pass on patched code (GREEN).
+    test_diff_proc = subprocess.run(
+        ["git", "-C", SANDBOX_DIR, "diff", "HEAD", "--", "test_cart.py"],
+        capture_output=True,
+        text=True,
+    )
+    test_diff = test_diff_proc.stdout.strip()
+    if not test_diff:
+        print(json.dumps({
+            "release_status": "RED_TO_GREEN_TEST_REQUIRED",
+            "incident_id": incident_id,
+            "error": "No test modifications detected. SRE TDD policy requires at least one reproduction test in test_cart.py.",
+            "exit_code": 2,
+        }, indent=2))
+        sys.exit(2)
+
+    # 1. Back up all modified application files (non-test .py files)
+    changed_app_files = {}
+    names_proc = subprocess.run(
+        ["git", "-C", ROOT_DIR, "diff", "--name-only", "HEAD", "--", "workspace/sandbox-app"],
+        capture_output=True,
+        text=True,
+    )
+    for fname in names_proc.stdout.splitlines():
+        fname = fname.strip()
+        fpath = os.path.join(ROOT_DIR, fname)
+        if fpath.endswith(".py") and not (os.path.basename(fpath).startswith("test_") or fpath.endswith("_test.py") or "/tests/" in fpath):
+            if os.path.exists(fpath):
+                with open(fpath, "r", encoding="utf-8") as f:
+                    changed_app_files[fpath] = f.read()
+
+    red_verified = False
+    try:
+        # 2. Revert application files to HEAD to test baseline behavior
+        if changed_app_files:
+            app_paths = list(changed_app_files.keys())
+            subprocess.run(["git", "-C", ROOT_DIR, "checkout", "HEAD", "--"] + app_paths, check=True)
+
+        # 3. Run pytest with new test on baseline app code -> MUST FAIL (RED)
+        baseline_pytest = subprocess.run(
+            ["pytest", "-q"],
+            cwd=SANDBOX_DIR,
+            capture_output=True,
+            text=True,
+        )
+        if baseline_pytest.returncode == 0:
+            print(json.dumps({
+                "release_status": "RED_TO_GREEN_FAILED",
+                "incident_id": incident_id,
+                "error": "Reproduction test passed on baseline application code. A valid reproduction test must fail on pre-patch code (RED state).",
+                "exit_code": 2,
+            }, indent=2))
+            sys.exit(2)
+        red_verified = True
+    finally:
+        # 4. Always restore patched application files
+        for fpath, content in changed_app_files.items():
+            with open(fpath, "w", encoding="utf-8") as f:
+                f.write(content)
+
+    # 5. Verify that patched code passes pytest (GREEN)
+    patched_pytest = subprocess.run(
+        ["pytest", "-q"],
+        cwd=SANDBOX_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if patched_pytest.returncode != 0:
+        print(json.dumps({
+            "release_status": "RED_TO_GREEN_FAILED",
+            "incident_id": incident_id,
+            "error": "Patched application code failed pytest (GREEN state failed).",
+            "pytest_output": patched_pytest.stdout.strip(),
+            "exit_code": 1,
+        }, indent=2))
+        sys.exit(1)
+
     # 4. Export git diff HEAD to patch artifact
     diff_proc = subprocess.run(
         ["git", "-C", SANDBOX_DIR, "diff", "HEAD", "--", "."],
@@ -1555,6 +1670,7 @@ def execute_release(incident_id: str, version: str):
     log_entry = (
         f"[{timestamp}] HOTFIX RELEASED: {version} for {incident_id} | "
         f"AST_AUDIT={audit_data.get('verdict', audit_data.get('status'))} | "
+        f"RED_TO_GREEN=VERIFIED | "
         f"PATCH={patch_filename} | SHA256={patch_sha256} | "
         f"FILES={files_changed} | LINES_ADDED={lines_added} | "
         f"PREV_HASH={prev_chain_hash} | CHAIN_HASH={chain_hash}\n"
@@ -1583,6 +1699,7 @@ def execute_release(incident_id: str, version: str):
         "patch_sha256": patch_sha256,
         "chain_hash": chain_hash,
         "ast_rules_checked": len(AST_RULES),
+        "red_to_green_verified": red_verified,
         "human_gate_verified": True,
     }
     with open(attestation_path, "w") as af:

