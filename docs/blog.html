@@ -1006,7 +1006,7 @@
 
         <div class="meta-pills">
           <span class="meta-pill meta-pill-green">✔ 30/30 Tests Passing</span>
-          <span class="meta-pill meta-pill-cyan">⚡ verify-diff p50: 9.07ms</span>
+          <span class="meta-pill meta-pill-cyan">⚡ verify-diff p50: 49.53ms core</span>
           <span class="meta-pill meta-pill-indigo">🔒 POSIX flock 32 Workers</span>
           <a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank" class="meta-pill meta-pill-cyan">Upstream PR #1566</a>
           <a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank" class="meta-pill meta-pill-cyan">Upstream PR #1659</a>
@@ -1069,7 +1069,7 @@ Error: CartServiceException: Cart subtotal $40.00 minus FLAT100 yields invalid t
 flowchart TB
     subgraph IngressLayer["Outer Ring: Telemetry Ingress (ACL: Anyone)"]
         RawLog["Raw Crash Log\n(Stack Trace, PII, User Input)"] --> Sentinel["@sre-sentinel\n(workspace/telemetry)\nNo Application Code Access"]
-        Sentinel --> ScrubBinary["switchguard-cli scrub\n(Rust Binary, LTO, <0.5ms)"]
+        Sentinel --> ScrubBinary["switchguard-cli scrub\n(Rust Binary, LTO, 8.92ms core)"]
         ScrubBinary --> DedupIndex[("dedup_index.json\nO(1) SHA-256 Fingerprint")]
         ScrubBinary --> Ledger[("incidents_ledger.md\nPOSIX flock locked")]
     end
@@ -1219,8 +1219,8 @@ Error: CartServiceException: Cart subtotal $40.00 minus FLAT100 yields invalid t
                 <strong>Scenario:</strong> SRE agent fixes negative voucher total in <code>cart_service.py</code> using mathematical clamping <code>max(0.0, ...)</code>.
               </div>
               <div class="sandbox-verdict-banner verdict-pass">
-                <span>✔ VERDICT: PASS (Exit Code 0) — All 10 AST & Diff Security Rules Satisfied</span>
-                <span>Latency: 9.07ms</span>
+                <span>✔ VERDICT: PASS (Exit Code 0) — All AST & Diff Security Rules Satisfied</span>
+                <span>Latency: 49.53ms core</span>
               </div>
               <div class="sandbox-grid">
                 <div class="sandbox-pane">

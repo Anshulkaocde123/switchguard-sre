@@ -1298,11 +1298,11 @@ def suite_7_latency_benchmarks() -> dict:
     print(f"\n{Colors.BOLD}Performance Benchmark Results:{Colors.END}")
     print(f"  | Operation | Iterations | p50 Latency | p95 Latency | p99 Latency | SLA Target |")
     print(f"  | :--- | :--- | :--- | :--- | :--- | :--- |")
-    print(f"  | `switchguard-cli scrub` | {iterations} | {p50_s:.2f}ms | {p95_s:.2f}ms | {p99_s:.2f}ms | p95 <= 25ms (native <1ms) |")
-    print(f"  | `switchguard-cli verify-diff` | {iterations} | {p50_d:.2f}ms | {p95_d:.2f}ms | {p99_d:.2f}ms | p95 < 25ms |")
+    print(f"  | `switchguard-cli scrub` | {iterations} | {p50_s:.2f}ms | {p95_s:.2f}ms | {p99_s:.2f}ms | p95 <= 25ms (native core 8.92ms p50) |")
+    print(f"  | `switchguard-cli verify-diff` | {iterations} | {p50_d:.2f}ms | {p95_d:.2f}ms | {p99_d:.2f}ms | p95 <= 25ms (clean tree) |")
 
     if scrub_p95_ok:
-        log_pass("CLI Scrub Alert Storm SLA", f"p95 = {p95_s:.2f}ms <= 25ms SLA target (native Rust core < 1ms)", p95_s)
+        log_pass("CLI Scrub Alert Storm SLA", f"p95 = {p95_s:.2f}ms <= 25ms SLA target (native Rust core 8.92ms p50)", p95_s)
         results.append(True)
     else:
         log_fail("CLI Scrub Alert Storm SLA", f"p95 = {p95_s:.2f}ms exceeded 25ms SLA target")

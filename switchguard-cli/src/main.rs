@@ -92,6 +92,8 @@ struct ScrubOutput {
     envelope_delimiter: String,
     untrusted_envelope: String,
     length_truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    elapsed_core_ms: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -109,6 +111,8 @@ struct VerifyOutput {
     sha256: String,
     forbidden_findings: Vec<String>,
     rules: Vec<VerifyRule>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    elapsed_core_ms: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -158,6 +162,8 @@ struct AuditVerifyOutput {
     error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     failed_entry: Option<AuditVerifyEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    elapsed_core_ms: Option<f64>,
 }
 
 fn compute_hmac_token(val: &str) -> String {
@@ -1015,6 +1021,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
                 status: "FAIL".to_string(),
                 description: "Rejects empty diffs (0 bytes)".to_string(),
             }],
+            elapsed_core_ms: None,
         };
     }
 
@@ -1346,6 +1353,7 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
         sha256: diff_hash,
         forbidden_findings: findings,
         rules,
+        elapsed_core_ms: None,
     }
 }
 
@@ -1430,6 +1438,7 @@ fn run_verify_audit(
             first_broken_index: None,
             error: Some(format!("Audit log not found at: {}", normalized_log)),
             failed_entry: None,
+            elapsed_core_ms: None,
         };
     }
 
@@ -1449,6 +1458,7 @@ fn run_verify_audit(
                 first_broken_index: None,
                 error: Some(format!("Failed to read audit log: {}", e)),
                 failed_entry: None,
+                elapsed_core_ms: None,
             };
         }
     };
@@ -1487,6 +1497,7 @@ fn run_verify_audit(
                         first_broken_index: Some(verified_count + 1),
                         error: Some(format!("Line {}: Missing valid [Timestamp]", idx + 1)),
                         failed_entry: None,
+                        elapsed_core_ms: None,
                     };
                 }
             };
@@ -1507,6 +1518,7 @@ fn run_verify_audit(
                         first_broken_index: Some(verified_count + 1),
                         error: Some(format!("Line {}: Missing valid 64-char SHA256", idx + 1)),
                         failed_entry: None,
+                        elapsed_core_ms: None,
                     };
                 }
             };
@@ -1544,6 +1556,7 @@ fn run_verify_audit(
                         entry_index, recorded_prev_hash, current_chain_hash
                     )),
                     failed_entry: Some(entry_info),
+                    elapsed_core_ms: None,
                 };
             }
 
@@ -1578,6 +1591,7 @@ fn run_verify_audit(
                         entry_index, computed_chain_hash, recorded_chain_hash
                     )),
                     failed_entry: Some(entry_info),
+                    elapsed_core_ms: None,
                 };
             }
 
@@ -1605,6 +1619,7 @@ fn run_verify_audit(
                     expected, current_chain_hash
                 )),
                 failed_entry: None,
+                elapsed_core_ms: None,
             };
         }
     }
@@ -1622,6 +1637,7 @@ fn run_verify_audit(
         first_broken_index: None,
         error: None,
         failed_entry: None,
+        elapsed_core_ms: None,
     }
 }
 
@@ -1639,25 +1655,29 @@ fn main() {
 
     if args[1] == "--help" || args[1] == "-h" || args[1] == "help" {
         println!(
-            "switchguard-cli {}\n\nUsage:\n  switchguard-cli scrub <log>\n  switchguard-cli verify-diff [path]\n  switchguard-cli verify-audit [audit_log_path]\n\nFlags:\n  -V, --version    Print version info\n  -h, --help       Print help information",
+            "switchguard-cli {}\n\nUsage:\n  switchguard-cli scrub <log> [--timing]\n  switchguard-cli verify-diff [path] [--timing]\n  switchguard-cli verify-audit [audit_log_path] [--expect-head <hash>] [--key <key>] [--timing]\n\nFlags:\n  -V, --version    Print version info\n  -h, --help       Print help information\n  --timing         Output core internal elapsed processing time (elapsed_core_ms)",
             env!("CARGO_PKG_VERSION")
         );
         process::exit(0);
     }
 
+    let with_timing = args.iter().any(|a| a == "--timing");
+
     match args[1].as_str() {
         "scrub" => {
-            let input = if args.len() > 2 {
-                let candidate = &args[2];
+            let scrub_args: Vec<String> = args[2..].iter().filter(|a| *a != "--timing").cloned().collect();
+            let input = if !scrub_args.is_empty() {
+                let candidate = &scrub_args[0];
                 if Path::new(candidate).exists() {
-                    fs::read_to_string(candidate).unwrap_or_else(|_| args[2..].join(" "))
+                    fs::read_to_string(candidate).unwrap_or_else(|_| scrub_args.join(" "))
                 } else {
-                    args[2..].join(" ")
+                    scrub_args.join(" ")
                 }
             } else {
                 String::new()
             };
 
+            let core_start = std::time::Instant::now();
             let (
                 sanitized,
                 count,
@@ -1674,6 +1694,7 @@ fn main() {
             let fault_fingerprint = format!("{:x}", Sha256::digest(canonical_input.as_bytes()));
             let (dedup_status, occurrence_count) =
                 record_or_check_dedup(&classification, &normalized_file_line, &fault_fingerprint);
+            let core_elapsed = core_start.elapsed().as_secs_f64() * 1000.0;
 
             let out = ScrubOutput {
                 status: if dedup_status == "SUPPRESSED_DUPLICATE" {
@@ -1695,13 +1716,20 @@ fn main() {
                 envelope_delimiter,
                 untrusted_envelope,
                 length_truncated,
+                elapsed_core_ms: if with_timing { Some((core_elapsed * 1000.0).round() / 1000.0) } else { None },
             };
 
             println!("{}", serde_json::to_string_pretty(&out).unwrap());
         }
         "verify-diff" => {
-            let path_str = if args.len() > 2 { &args[2] } else { "." };
-            let result = run_verify_diff(path_str);
+            let vdiff_args: Vec<String> = args[2..].iter().filter(|a| *a != "--timing").cloned().collect();
+            let path_str = if !vdiff_args.is_empty() { &vdiff_args[0] } else { "." };
+            let core_start = std::time::Instant::now();
+            let mut result = run_verify_diff(path_str);
+            let core_elapsed = core_start.elapsed().as_secs_f64() * 1000.0;
+            if with_timing {
+                result.elapsed_core_ms = Some((core_elapsed * 1000.0).round() / 1000.0);
+            }
             let exit_code = match result.status.as_str() {
                 "EMPTY_PATCH_REJECTED" => 3,
                 "BLOCKED" => 2,
@@ -1731,6 +1759,8 @@ fn main() {
                         i += 2;
                         continue;
                     }
+                } else if args[i] == "--timing" {
+                    // Handled globally
                 } else if !args[i].starts_with("--") {
                     if path_str.is_none() {
                         path_str = Some(args[i].clone());
@@ -1770,7 +1800,12 @@ fn main() {
                 }
             };
 
-            let result = run_verify_audit(&resolved_path, expect_head.as_deref(), cli_key.as_deref());
+            let core_start = std::time::Instant::now();
+            let mut result = run_verify_audit(&resolved_path, expect_head.as_deref(), cli_key.as_deref());
+            let core_elapsed = core_start.elapsed().as_secs_f64() * 1000.0;
+            if with_timing {
+                result.elapsed_core_ms = Some((core_elapsed * 1000.0).round() / 1000.0);
+            }
             let is_blocked = result.tamper_detected || result.status != "PASS";
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             if is_blocked {

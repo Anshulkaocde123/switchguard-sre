@@ -15,8 +15,8 @@ Giving autonomous SRE agents unconstrained shell access fails in production: raw
 
 SwitchGuard SRE is an autonomous incident response and patch verification pipeline built on Switch Console and Google Antigravity ACP. Instead of relying on fragile prompt instructions, it isolates three role-scoped agents inside separate directories and gates every action at the operating-system boundary through a compiled Rust binary (switchguard-cli):
 
-1. Telemetry Intake (@sre-sentinel): Scrubs raw crash dumps into salted HMAC correlation tokens in 7.19ms, preserves release version strings (v1.4.2.0) against IPv4 regex collisions, and enforces O(1) fault fingerprint deduplication (<0.5ms) under a POSIX fcntl.flock file mutex—suppressing 32-worker alert storms with zero duplicate LLM calls or JSON corruption.
-2. Sandbox Reproduction (@sre-repro): Enforces strict Test-Driven Development (writing the failing pytest reproduction test first in test_cart.py before patching cart_service.py), bounded by a 2-strike circuit breaker (MAX_ATTEMPTS=2). Before requesting release, it runs switchguard-cli verify-diff, which combines unified git diff parsing with Python Abstract Syntax Tree analysis (ast.walk) in 9.07ms p50 to enforce 16 security rules—blocking eval/exec, multiline os.system splits, subprocess calls, untracked conftest.py backdoors, network exfiltration, and reward-hacking assert deletions.
+1. Telemetry Intake (@sre-sentinel): Scrubs raw crash dumps into salted HMAC correlation tokens in 8.92ms core (10.96ms end-to-end), preserves release version strings (v1.4.2.0) against IPv4 regex collisions, and enforces O(1) hash-table fault fingerprint deduplication under a POSIX fcntl.flock file mutex—suppressing 32-worker alert storms with zero duplicate LLM calls or JSON corruption.
+2. Sandbox Reproduction (@sre-repro): Enforces strict Test-Driven Development (writing the failing pytest reproduction test first in test_cart.py before patching cart_service.py), bounded by a 2-strike circuit breaker (MAX_ATTEMPTS=2). Before requesting release, it runs switchguard-cli verify-diff, which combines unified git diff parsing with Python Abstract Syntax Tree analysis (ast.walk) in 49.53ms core (51.47ms end-to-end) p50 to enforce 16 security rules—blocking eval/exec, multiline os.system splits, subprocess calls, untracked conftest.py backdoors, network exfiltration, and reward-hacking assert deletions.
 3. Cryptographic Release (@sre-clerk): Remains locked until a human Incident Commander posts explicit approval in-thread. It verifies 5 pre-release gates, exports the unified git patch, generates an attestation manifest binding binary and patch SHA-256 digests (designed to be bound to a TEE attestation; not implemented), and appends a keyed HMAC-SHA256 entry to RELEASE_AUDIT.log verified from genesis.
 4. Upstream Switch Core Contributions: Contributed two service connectors to sandbox-quantum/switch—Supabase Remote MCP Connector (PR #1566, closes Issue #827) and Trello Remote MCP Connector (PR #1659, closes Issue #837).
 ```
@@ -177,8 +177,8 @@ Here is #HowISwitch to build autonomous SRE with real OS-boundary guardrails:
 Meet SwitchGuard SRE 🛡️⚡
 A 3-agent war room on Switch Console gated at the operating system boundary by a high-speed compiled Rust verifier (switchguard-cli):
 
-1. Telemetry Intake (@sre-sentinel): Scrubs secrets to salted HMAC tokens in 7.19ms, preserves version strings against IPv4 collisions, and enforces O(1) deduplication under POSIX fcntl.flock (<0.5ms)—suppressing 32-worker alert storms with zero duplicate LLM calls.
-2. Code Sandbox (@sre-repro): Strict TDD (failing pytest first) + 9.07ms AST diff gate (blocks eval/exec, multiline os.system splits, untracked conftest backdoors, and assert deletions) + 2-strike circuit breaker.
+1. Telemetry Intake (@sre-sentinel): Scrubs secrets to salted HMAC tokens in 8.92ms core (10.96ms end-to-end), preserves version strings against IPv4 collisions, and enforces O(1) hash-table deduplication under POSIX fcntl.flock—suppressing 32-worker alert storms with zero duplicate LLM calls.
+2. Code Sandbox (@sre-repro): Strict TDD (failing pytest first) + 49.53ms core (51.47ms end-to-end) AST diff gate (blocks eval/exec, multiline os.system splits, untracked conftest backdoors, and assert deletions) + 2-strike circuit breaker.
 3. Release Ops (@sre-clerk): Human-gated release authority. Verifies 5 checks, packages unified patches, generates attestation receipts (designed to be bound to a TEE attestation; not implemented), and anchors a keyed HMAC-SHA256 chain from genesis.
 
 We also contributed two upstream core connectors to sandbox-quantum/switch:
@@ -210,7 +210,7 @@ Here is #HowISwitch to fix it 🧵👇
 ```text
 Instead of a single unconstrained agent, SwitchGuard SRE runs 3 directory-isolated Switch Console agents in #sre-war-room:
 
-• @sre-sentinel (/workspace/telemetry): 0 access to app code. Scrubs secrets in 7.19ms & dedups O(1) under POSIX fcntl.flock (<0.5ms).
+• @sre-sentinel (/workspace/telemetry): 0 access to app code. Scrubs secrets in 8.92ms core & dedups O(1) under POSIX fcntl.flock.
 • @sre-repro (/workspace/sandbox-app): TDD reproduction & surgical fixing.
 • @sre-clerk (/workspace/release-ops): Human-gated release & audit.
 
@@ -222,7 +222,7 @@ Instead of a single unconstrained agent, SwitchGuard SRE runs 3 directory-isolat
 Why does agent safety fail? Prompts can be jailbroken.
 
 We built switchguard-cli in compiled Rust.
-In 9.07ms p50, it combines unified diff scanning with Python's native AST (ast.walk) to enforce 16 rules:
+In 49.53ms core (51.47ms end-to-end) p50, it combines unified diff scanning with Python's native AST (ast.walk) to enforce 16 rules:
 - Blocks eval/exec & os.system splits
 - Blocks subprocess & dynamic imports
 - Blocks network exfiltration & unsafe FS writes

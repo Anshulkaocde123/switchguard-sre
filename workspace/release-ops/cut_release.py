@@ -1052,8 +1052,8 @@ def generate_dashboard() -> str:
 
       <div class="metric-card">
         <div class="metric-title">Rust Scrub Latency (p50)</div>
-        <div class="metric-value">7.19ms <span style="font-size: 14px; color: var(--accent-cyan);">(p95: 8.8ms)</span></div>
-        <div class="metric-subtitle">Compiled binary telemetry scrubber &amp; O(1) dedup</div>
+        <div class="metric-value">8.92ms core <span style="font-size: 14px; color: var(--accent-cyan);">(p95: 12.85ms)</span></div>
+        <div class="metric-subtitle">Compiled binary telemetry scrubber &amp; O(1) hash dedup (10.96ms e2e)</div>
       </div>
 
       <div class="metric-card">
@@ -1185,7 +1185,7 @@ def generate_dashboard() -> str:
           </tr>
           <tr>
             <td><strong>Suite 7</strong></td>
-            <td>Latency &amp; Performance Benchmarks (20 Iterations: p50 7.19ms)</td>
+            <td>Latency &amp; Performance Benchmarks (N=50: scrub duplicate p50 8.92ms core / 10.96ms e2e)</td>
             <td>1</td>
             <td><span class="badge badge-emerald">PASS</span></td>
             <td><code>286.3ms</code></td>

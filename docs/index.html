@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SwitchGuard SRE — TEE & Incident Verification Dashboard</title>
+  <title>SwitchGuard SRE — Incident Verification & Audit Dashboard</title>
   <style>
     :root {
       --bg-dark: #070b13;
@@ -556,7 +556,7 @@
         </a>
         <div class="status-pill">
           <div class="pulse-dot"></div>
-          <span>TEE AUDIT ACTIVE • RUST v0.4.0</span>
+          <span>HMAC AUDIT ACTIVE • RUST v0.4.0</span>
         </div>
         <div class="status-pill" style="color: var(--accent-cyan); border-color: rgba(6, 182, 212, 0.3); background: rgba(6, 182, 212, 0.1);">
           <span>0 MB DAEMON RAM</span>
@@ -588,8 +588,8 @@
 
       <div class="metric-card">
         <div class="metric-title">Rust Scrub Latency (p50)</div>
-        <div class="metric-value">7.19ms <span style="font-size: 14px; color: var(--accent-cyan);">(p95: 8.8ms)</span></div>
-        <div class="metric-subtitle">Compiled binary telemetry scrubber &amp; O(1) dedup</div>
+        <div class="metric-value">8.92ms core <span style="font-size: 14px; color: var(--accent-cyan);">(p95: 12.85ms)</span></div>
+        <div class="metric-subtitle">Compiled binary telemetry scrubber &amp; O(1) hash dedup (10.96ms e2e)</div>
       </div>
 
       <div class="metric-card">
@@ -721,7 +721,7 @@
           </tr>
           <tr>
             <td><strong>Suite 7</strong></td>
-            <td>Latency &amp; Performance Benchmarks (20 Iterations: p50 7.19ms)</td>
+            <td>Latency &amp; Performance Benchmarks (N=50: scrub duplicate p50 8.92ms core / 10.96ms e2e)</td>
             <td>1</td>
             <td><span class="badge badge-emerald">PASS</span></td>
             <td><code>286.3ms</code></td>
@@ -747,7 +747,7 @@
     
         <div class="chain-block">
           <div class="chain-label">RELEASE #1 (v1.4.2)</div>
-          <div class="chain-hash">77519c5dd12701...</div>
+          <div class="chain-hash">7b39006050468c...</div>
           <div class="chain-meta">INC-8041 • hotfix-INC-8041-</div>
         </div>
         
@@ -777,7 +777,7 @@
               <td><code>hotfix-INC-8041-v1.4.2.patch</code></td>
               <td><code class="hash-code" title="0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28">0ee2a4e5bbcf18df...</code></td>
               <td><code class="hash-code" title="0000000000000000000000000000000000000000000000000000000000000000">000000000000...</code></td>
-              <td><code class="hash-code hash-gold" title="77519c5dd1270126469cc783d3e3a8f88f89a38162bcb0f10750af102a46c975">77519c5dd1270126...</code></td>
+              <td><code class="hash-code hash-gold" title="7b39006050468c23d6c24449b822a3c6c6ce4bb48f15536a8b6077434349ffb8">7b39006050468c23...</code></td>
               <td><span class="badge badge-emerald">VERIFIED</span></td>
             </tr>
             
@@ -820,7 +820,7 @@
 
     <!-- AST Security Rules -->
     <div class="section-header">
-      <h2>Out-of-Band Rust AST Security Gate (10 Active Rules)</h2>
+      <h2>Out-of-Band Security Verifier (Diff Scanner + Python AST Analysis — 16 Active Rules)</h2>
       <span class="badge badge-emerald">Deterministic Static Analysis</span>
     </div>
 
@@ -916,6 +916,60 @@
           <div class="rule-desc">Limits hotfix additions in production .py files to at most 30 lines.</div>
         </div>
         
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-10</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">No Network Exfiltration</div>
+          <div class="rule-desc">Blocks network access and exfiltration (urllib, requests, httpx, sockets, asyncio streams).</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-11</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">No Native Unsafe Loading</div>
+          <div class="rule-desc">Blocks native/unsafe code loading and deserialization (ctypes, cffi, pickle, marshal, dill).</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-12</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">No Introspection Escapes</div>
+          <div class="rule-desc">Blocks sandbox escape via introspection (__class__, __subclasses__, globals(), setattr, metaprogramming).</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-13</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">No Unsafe Filesystem Access</div>
+          <div class="rule-desc">Blocks filesystem writes, destructive operations, environment reading, and path traversal (/etc, ~/.ssh, ..).</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-14</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">No Staged Payloads</div>
+          <div class="rule-desc">Blocks encoded or staged payloads (base64/codecs/zlib decodes feeding into calls or long code strings).</div>
+        </div>
+        
+        <div class="rule-card">
+          <div class="rule-header">
+            <span class="rule-id">AST-SEC-15</span>
+            <span class="badge badge-green">ACTIVE / ENFORCED</span>
+          </div>
+          <div class="rule-title">Strict Import Allowlist</div>
+          <div class="rule-desc">Enforces strict import allowlist for production code; unauthorized module imports are rejected.</div>
+        </div>
+        
     </div>
 
     <!-- Upstream Switch Ecosystem Contributions -->
@@ -985,7 +1039,7 @@
         <a href="https://github.com/Anshulkaocde123/switchguard-sre" target="_blank" style="color: var(--text-secondary); text-decoration: none;">GitHub Repository</a>
       </div>
       <div>
-        SwitchGuard SRE • Autonomous Multi-Agent SRE Pipeline • Switch Console + Antigravity ACP • Last Sync: 2026-11-07 21:08:39 UTC
+        SwitchGuard SRE • Autonomous Multi-Agent SRE Pipeline • Switch Console + Antigravity ACP • Last Sync: 2026-11-07 22:32:32 UTC
       </div>
     </footer>
   </div>
