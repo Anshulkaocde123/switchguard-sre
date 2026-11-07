@@ -1,13 +1,29 @@
-switchguard-cli/target/
+# Rust build artifacts
 target/
+switchguard-cli/target/
+*.rs.bk
+
+# Python cache and bytecode
+__pycache__/
 **/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
 **/.pytest_cache/
-**/*.pyc
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Lock files and ephemeral runtime artifacts
 **/*.lock
 !Cargo.lock
 !**/Cargo.lock
 workspace/telemetry/.triage.lock
+workspace/telemetry/dedup_index.json
+workspace/release-ops/RELEASE_AUDIT.log.lock
+
+# OS metadata
 .DS_Store
-.env
-.env.local
-dedup_index.json
+Thumbs.db

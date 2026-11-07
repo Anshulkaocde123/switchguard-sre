@@ -442,12 +442,15 @@ switchguard-sre/
 ├── Makefile                           # Developer task runner (make test, make build, make demo)
 ├── AGENTS.md                          # Multi-agent architecture context and directory isolation rules
 ├── SWITCH_PROTOCOL.md                 # Upstream Switch protocol specs and PR documentation
-├── SKILL_RUST_VERIFIER.md             # Rust CLI verification specification
 ├── switchguard-sre.template.yaml      # 1-click Switch Room Template definition
 ├── TEST_VERIFICATION_REPORT.md        # Cryptographic verification scorecard (54/54 passed)
+├── LICENSE                            # MIT License
 ├── docs/
+│   ├── THREAT_MODEL.md                # Adversarial threat model and 16 AST security rules
 │   ├── LIMITATIONS.md                 # Explicit boundaries: semantic gap, single-host flock, Python-only AST
 │   ├── BENCHMARKS.md                  # Reproducible N=50 latency benchmarks (core vs end-to-end)
+│   ├── REVIEW_BASELINE.md             # Baseline inventory of all quantitative claims and verdicts
+│   ├── notes/                         # Design notes, production playbook, and reference blueprints
 │   └── index.html                     # Live static observability dashboard & test widget
 ├── eval/
 │   ├── RESULTS.md                     # 24-case empirical agent evaluation report (GATE_OFF vs GATE_ON)

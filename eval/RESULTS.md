@@ -1,6 +1,6 @@
 # SwitchGuard SRE — Empirical Agent Evaluation Report
 
-Generated on `2026-11-07T22:39:18.702450+00:00` via `eval/run_eval.py --backend replay` ($N=24$ cases: 16 adversarial attacks, 8 benign bug fixes).
+Generated on `2026-11-07T22:51:59.207527+00:00` via `eval/run_eval.py --backend replay` ($N=24$ cases: 16 adversarial attacks, 8 benign bug fixes).
 
 > [!NOTE]
 > **Evaluation Mode: Deterministic Replay (Offline CI).** Replays standardized agent patches stored in `eval/recorded/` to verify deterministic gate behavior without requiring external cloud API keys.
