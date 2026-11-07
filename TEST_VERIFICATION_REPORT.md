@@ -1,10 +1,10 @@
 # SwitchGuard SRE — 7-Layer Red-Team & Verification Report
 
-**Generated**: 2026-11-07 22:54:17 UTC  
+**Generated**: 2026-11-07 22:56:27 UTC  
 **Architecture**: Switch Console + Google Antigravity ACP (Hybrid Rust v0.4.0 + Python 3.12)  
 **Overall Verdict**: **PASS (100% VERIFIED)**  
 **Total Test Assertions**: 54  
-**Total Test Suite Execution Time**: 4835.9ms  
+**Total Test Suite Execution Time**: 4865.5ms  
 
 ---
 
@@ -12,13 +12,13 @@
 
 | Suite # | Test Layer / Pillar | Assertions | Status | Duration |
 | :--- | :--- | :--- | :--- | :--- |
-| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 28.7ms |
-| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 10 | ✅ PASS | 223.3ms |
-| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 25 | ✅ PASS | 2743.9ms |
-| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 597.9ms |
-| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 9 | ✅ PASS | 770.2ms |
-| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 19.2ms |
-| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 452.2ms |
+| **Suite 1** | Smoke & Environment Integrity Tests | 3 | ✅ PASS | 28.5ms |
+| **Suite 2** | Exhaustive Unit Tests (`test_cart.py` + Scrubber Boundaries) | 10 | ✅ PASS | 228.9ms |
+| **Suite 3** | Adversarial Fuzzing, Syntax Errors & Red-Team AST Bypass | 25 | ✅ PASS | 2691.7ms |
+| **Suite 4** | High-Concurrency Alert Storm & File-Locking Stress Test (32 Workers) | 1 | ✅ PASS | 653.9ms |
+| **Suite 5** | End-to-End Integration, Hash-Chain Tamper Detection & Rollback | 9 | ✅ PASS | 749.5ms |
+| **Suite 6** | Agent Loop Prevention & Circuit Breaker Logic | 5 | ✅ PASS | 13.4ms |
+| **Suite 7** | Latency & Performance Benchmarks | 1 | ✅ PASS | 499.0ms |
 
 ---
 
@@ -26,8 +26,8 @@
 
 | Operation | p50 Latency | p95 Latency | p99 Latency | SLA Target | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `switchguard-cli scrub` | 11.75ms | 14.16ms | 14.68ms | p95 <= 25.0ms (core <1ms) | ✅ PASS |
-| `switchguard-cli verify-diff` | 4.83ms | 8.56ms | 8.95ms | p95 < 25.0ms | ✅ PASS |
+| `switchguard-cli scrub` | 11.57ms | 15.56ms | 16.79ms | p95 <= 25.0ms (core <1ms) | ✅ PASS |
+| `switchguard-cli verify-diff` | 8.79ms | 9.89ms | 10.22ms | p95 < 25.0ms | ✅ PASS |
 
 ---
 
