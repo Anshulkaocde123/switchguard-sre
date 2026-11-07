@@ -117,8 +117,8 @@ flowchart TB
         Commander -->|Posts 'Approved'| Clerk["@sre-clerk\n(workspace/release-ops)"]
         Clerk --> CutRelease["cut_release.py\n(4 Pre-Release Verification Gates)"]
         CutRelease --> PatchArtifact["releases/hotfix-INC-8041-v1.4.2.patch"]
-        CutRelease --> AuditLog["RELEASE_AUDIT.log\n(SHA-256 Hash-Chained Entry)"]
-        CutRelease --> Attestation["releases/attestation-INC-8041-v1.4.2.json\n(TEE-Ready Receipt)"]
+        CutRelease --> AuditLog["RELEASE_AUDIT.log\n(Keyed HMAC-SHA256 Hash-Chained Entry)"]
+        CutRelease --> Attestation["releases/attestation-INC-8041-v1.4.2.json\n(Attestation Receipt; TEE-binding not implemented)"]
         CutRelease --> RustAudit["switchguard-cli verify-audit\n(Cryptographic Verification: Exit 0)"]
     end
 ```
@@ -149,8 +149,8 @@ sequenceDiagram
     Repro->>Commander: Post verified git diff and pytest report in thread
     Commander->>Clerk: Type 'Approved' in war-room channel
     Clerk->>Rust: Pre-release checks (Pytest + verify-diff + non-empty app diff)
-    Clerk->>Clerk: Append to RELEASE_AUDIT.log with SHA-256 hash chaining
-    Clerk->>Clerk: Generate TEE-ready attestation receipt
+    Clerk->>Clerk: Append to RELEASE_AUDIT.log with keyed HMAC-SHA256 hash chaining
+    Clerk->>Clerk: Generate attestation receipt (designed for TEE binding; not implemented)
     Clerk->>Rust: verify-audit RELEASE_AUDIT.log (Genesis -> Root verification)
     Rust-->>Clerk: Exit 0 (PASS: audit chain valid)
     Clerk-->>Commander: Release v1.4.2 deployed and audit receipt signed
@@ -177,9 +177,9 @@ stateDiagram-v2
     ESCALATED --> [*]
 ```
 
-### Diagram 4: Tamper-Evident SHA-256 Audit Chain & TEE-Ready Receipt
+### Diagram 4: Tamper-Evident Keyed HMAC-SHA256 Audit Chain & Attestation Receipt
 
-Every release cryptographically binds the previous release hash, timestamp, and patch SHA-256:
+Every release cryptographically binds the previous release hash, timestamp, and patch SHA-256 using keyed HMAC-SHA256:
 
 ```mermaid
 flowchart LR
@@ -188,18 +188,18 @@ flowchart LR
     end
 
     subgraph Release1["Release v1.4.1 (INC-8039)"]
-        R1Payload["Payload 1\n• PrevHash: Genesis\n• Timestamp: 2026-11-06T14:20:00Z\n• Patch SHA: a4f81c90..."] --> R1Hash["ChainHash_1\nSHA256(Payload 1)"]
+        R1Payload["Payload 1\n• PrevHash: Genesis\n• Timestamp: 2026-11-06T14:20:00Z\n• Patch SHA: a4f81c90..."] --> R1Hash["ChainHash_1\nHMAC-SHA256(key, Payload 1)"]
     end
 
     subgraph Release2["Release v1.4.2 (INC-8041)"]
-        R2Payload["Payload 2\n• PrevHash: ChainHash_1\n• Timestamp: 2026-11-07T05:15:30Z\n• Patch SHA: 9f3a0275..."] --> R2Hash["ChainHash_2\nSHA256(Payload 2)"]
+        R2Payload["Payload 2\n• PrevHash: ChainHash_1\n• Timestamp: 2026-11-07T05:15:30Z\n• Patch SHA: 9f3a0275..."] --> R2Hash["ChainHash_2\nHMAC-SHA256(key, Payload 2)"]
     end
 
     subgraph Release3["Release v1.4.3 (INC-8042)"]
-        R3Payload["Payload 3\n• PrevHash: ChainHash_2\n• Timestamp: 2026-11-07T05:22:10Z\n• Patch SHA: e3b749a1..."] --> R3Hash["ChainHash_3\nSHA256(Payload 3)"]
+        R3Payload["Payload 3\n• PrevHash: ChainHash_2\n• Timestamp: 2026-11-07T05:22:10Z\n• Patch SHA: e3b749a1..."] --> R3Hash["ChainHash_3\nHMAC-SHA256(key, Payload 3)"]
     end
 
-    subgraph AttestationReceipt["Cryptographic Release Receipt (TEE-Ready)"]
+    subgraph AttestationReceipt["Cryptographic Release Receipt (Designed for TEE binding; not implemented)"]
         Receipt["attestation-INC-8041-v1.4.2.json\n• binary_sha256 (Rust CLI)\n• patch_sha256 (Diff)\n• audit_chain_hash (ChainHash_2)\n• git_commit_head\n• verified_by: switchguard-cli"]
     end
 
@@ -280,7 +280,7 @@ When evaluating prompt-injection logs containing shell pipe chains (`curl http:/
 | **3** | **AST Analysis** | Native Rust diff check + Python `ast.walk` | Heavy SAST frameworks (Semgrep, Bandit, SonarQube) | External SAST tools have 3-to-5 second startup times. Our targeted verifier runs in `8.11ms` p50 with zero external package dependencies. |
 | **4** | **Concurrency Control** | POSIX kernel file locks (`fcntl.flock`) + `os.fsync` | External daemon (Redis, PostgreSQL, RabbitMQ) | Eliminates background memory overhead (0 MB daemon RAM), allowing 3 agents to run on resource-constrained 8 GB hosts while handling 32 parallel alert workers without race conditions. |
 | **5** | **Loop Protection** | 2-Strike Circuit Breaker (`MAX_ATTEMPTS = 2`) | Unlimited agent retries until pass | If an LLM cannot fix a bug in 2 attempts, subsequent attempts frequently degrade into reward-hacking or burn excessive tokens. We halt execution and escalate to a human engineer. |
-| **6** | **Audit Trail** | SHA-256 Hash Chaining + TEE-Ready Manifests | Distributed Ledger / Cloud KMS | Verifies locally in under 2ms with zero network calls, while binding binary SHA-256 and patch SHA-256 for deployment inside AWS Nitro Enclaves or confidential VMs. |
+| **6** | **Audit Trail** | Keyed HMAC-SHA256 Hash Chaining + Attestation Manifests (designed to be bound to a TEE attestation; not implemented) | Distributed Ledger / Cloud KMS | Verifies locally in under 2ms with zero network calls, preventing unauthorized chain recalculation while binding binary SHA-256 and patch SHA-256 (designed for future deployment inside AWS Nitro Enclaves or confidential VMs). |
 | **7** | **Observability** | Static HTML/JS Dashboard (`docs/index.html`) | Full-stack React / Node.js service | Runs with 0 MB background server RAM, loads instantly, and deploys directly to GitHub Pages for judge inspection without local build steps. |
 
 ---

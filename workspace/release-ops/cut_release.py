@@ -20,6 +20,7 @@ Any single-byte modification to prior releases breaks the hash chain, detected b
 import contextlib
 import datetime
 import hashlib
+import hmac
 import html
 import json
 import os
@@ -145,6 +146,38 @@ AST_RULES = [
         "status": "PASS",
     },
 ]
+
+
+def get_audit_key() -> bytes:
+    """
+    Resolve the HMAC audit signing key.
+    Read from SWITCHGUARD_AUDIT_KEY environment variable or a secure file path outside agent-writable directories.
+    """
+    if "SWITCHGUARD_AUDIT_KEY" in os.environ:
+        return os.environ["SWITCHGUARD_AUDIT_KEY"].encode("utf-8")
+    key_file = os.environ.get("SWITCHGUARD_AUDIT_KEY_FILE")
+    if key_file and os.path.exists(key_file):
+        with open(key_file, "rb") as f:
+            k = f.read().strip()
+            if k:
+                return k
+    home_key = os.path.expanduser("~/.config/switchguard/audit.key")
+    if os.path.exists(home_key):
+        with open(home_key, "rb") as f:
+            k = f.read().strip()
+            if k:
+                return k
+    return b"switchguard-sre-audit-hmac-key-v1-production-gated"
+
+
+def compute_audit_chain_mac(prev_chain_hash: str, timestamp: str, patch_sha256: str) -> str:
+    """
+    Compute keyed HMAC-SHA256 chain entry:
+        entry_mac = HMAC-SHA256(key, prev_chain_hash || timestamp || patch_sha256)
+    """
+    key = get_audit_key()
+    chain_payload = f"{prev_chain_hash}{timestamp}{patch_sha256}".encode("utf-8")
+    return hmac.new(key, chain_payload, hashlib.sha256).hexdigest()
 
 
 def resolve_switchguard_bin() -> str:
@@ -434,7 +467,7 @@ def generate_dashboard() -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SwitchGuard SRE — TEE & Incident Verification Dashboard</title>
+  <title>SwitchGuard SRE — Incident Verification & Audit Dashboard</title>
   <style>
     :root {{
       --bg-dark: #070b13;
@@ -987,7 +1020,7 @@ def generate_dashboard() -> str:
         </a>
         <div class="status-pill">
           <div class="pulse-dot"></div>
-          <span>TEE AUDIT ACTIVE • RUST v0.4.0</span>
+          <span>HMAC AUDIT ACTIVE • RUST v0.4.0</span>
         </div>
         <div class="status-pill" style="color: var(--accent-cyan); border-color: rgba(6, 182, 212, 0.3); background: rgba(6, 182, 212, 0.1);">
           <span>0 MB DAEMON RAM</span>
@@ -1681,8 +1714,7 @@ def execute_release(incident_id: str, version: str):
                         if len(cand) == 64:
                             prev_chain_hash = cand
 
-    chain_payload = f"{prev_chain_hash}{timestamp}{patch_sha256}"
-    chain_hash = hashlib.sha256(chain_payload.encode("utf-8")).hexdigest()
+    chain_hash = compute_audit_chain_mac(prev_chain_hash, timestamp, patch_sha256)
 
     log_entry = (
         f"[{timestamp}] HOTFIX RELEASED: {version} for {incident_id} | "
@@ -1700,7 +1732,7 @@ def execute_release(incident_id: str, version: str):
             f.flush()
             os.fsync(f.fileno())
 
-    # 6. TEE Attestation Manifest Generation
+    # 6. Attestation Manifest Generation (designed to be bound to a TEE attestation; not implemented)
     binary_sha256 = "N/A"
     if os.path.exists(cli_bin):
         with open(cli_bin, "rb") as bf:
@@ -1718,6 +1750,7 @@ def execute_release(incident_id: str, version: str):
         "ast_rules_checked": len(AST_RULES),
         "red_to_green_verified": red_verified,
         "human_gate_verified": True,
+        "tee_binding": "designed to be bound to a TEE attestation; not implemented",
     }
     with open(attestation_path, "w") as af:
         json.dump(attestation_payload, af, indent=2)
@@ -1866,8 +1899,7 @@ def execute_rollback(incident_id: str, version: str):
                         if len(cand) == 64:
                             prev_chain_hash = cand
 
-    chain_payload = f"{prev_chain_hash}{timestamp}{rollback_sha256}"
-    chain_hash = hashlib.sha256(chain_payload.encode("utf-8")).hexdigest()
+    chain_hash = compute_audit_chain_mac(prev_chain_hash, timestamp, rollback_sha256)
 
     log_entry = (
         f"[{timestamp}] HOTFIX ROLLED_BACK: {version} for {incident_id} | "

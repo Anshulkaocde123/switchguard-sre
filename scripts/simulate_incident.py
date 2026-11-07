@@ -65,7 +65,7 @@ RESET = "\033[0m"
 def print_banner():
     print(f"\n{CYAN}{BOLD}{'='*80}{RESET}")
     print(f"{CYAN}{BOLD} SwitchGuard SRE — Autonomous Incident Response & Verification CLI{RESET}")
-    print(f"{CYAN} Switch Console + Antigravity ACP • 7-Layer TEE & AST Hardened{RESET}")
+    print(f"{CYAN} Switch Console + Antigravity ACP • 7-Layer AST Hardened & HMAC Chained{RESET}")
     print(f"{CYAN}{BOLD}{'='*80}{RESET}\n")
 
 

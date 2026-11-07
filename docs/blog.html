@@ -1087,7 +1087,7 @@ flowchart TB
         DiffVerified -- "No: Exit 2 Violation" --> CircuitBreaker["Trip Strike Counter\n(MAX_ATTEMPTS = 2)"]
         Clerk --> CutRelease["cut_release.py\n(Pre-flight 4-Point Check)"]
         CutRelease --> HashChain[("RELEASE_AUDIT.log\nSHA-256 Hash Chained")]
-        CutRelease --> Manifest[("Attestation Manifest\nTEE Cryptographic Receipt")]
+        CutRelease --> Manifest[("Attestation Manifest\n(Designed for TEE binding; not implemented)")]
     end
 
     style IngressLayer fill:#0f172a,stroke:#06b6d4,stroke-width:1.5px

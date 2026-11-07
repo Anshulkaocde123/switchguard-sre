@@ -17,7 +17,7 @@ SwitchGuard SRE is an autonomous incident response and patch verification pipeli
 
 1. Telemetry Intake (@sre-sentinel): Scrubs raw crash dumps into salted HMAC correlation tokens in 7.19ms, preserves release version strings (v1.4.2.0) against IPv4 regex collisions, and enforces O(1) fault fingerprint deduplication (<0.5ms) under a POSIX fcntl.flock file mutex—suppressing 32-worker alert storms with zero duplicate LLM calls or JSON corruption.
 2. Sandbox Reproduction (@sre-repro): Enforces strict Test-Driven Development (writing the failing pytest reproduction test first in test_cart.py before patching cart_service.py), bounded by a 2-strike circuit breaker (MAX_ATTEMPTS=2). Before requesting release, it runs switchguard-cli verify-diff, which combines unified git diff parsing with Python Abstract Syntax Tree analysis (ast.walk) in 9.07ms p50 to enforce 16 security rules—blocking eval/exec, multiline os.system splits, subprocess calls, untracked conftest.py backdoors, network exfiltration, and reward-hacking assert deletions.
-3. Cryptographic Release (@sre-clerk): Remains locked until a human Incident Commander posts explicit approval in-thread. It verifies 4 pre-release gates, exports the unified git patch, generates a TEE-ready attestation manifest (binding binary and patch SHA-256 digests), and appends a SHA-256 hash-chained entry to RELEASE_AUDIT.log verified from genesis.
+3. Cryptographic Release (@sre-clerk): Remains locked until a human Incident Commander posts explicit approval in-thread. It verifies 5 pre-release gates, exports the unified git patch, generates an attestation manifest binding binary and patch SHA-256 digests (designed to be bound to a TEE attestation; not implemented), and appends a keyed HMAC-SHA256 entry to RELEASE_AUDIT.log verified from genesis.
 4. Upstream Switch Core Contributions: Contributed two service connectors to sandbox-quantum/switch—Supabase Remote MCP Connector (PR #1566, closes Issue #827) and Trello Remote MCP Connector (PR #1659, closes Issue #837).
 ```
 
@@ -31,7 +31,7 @@ I used Switch Console (v0.41.0 Canary) and Google Antigravity ACP to run a 3-age
 1. Directory-Isolated Agent Roles & OS-Boundary Enforcement:
 - @sre-sentinel (/workspace/telemetry | ACL: Anyone): Intake and sanitization agent. Subscribes to incoming crash alerts, runs our compiled Rust binary (switchguard-cli scrub) to replace secrets with salted HMAC tokens, checks runbook_memory.json for prior fix patterns, and updates dedup_index.json under a POSIX fcntl.flock lock. It has zero read or write access to application source code.
 - @sre-repro (/workspace/sandbox-app | ACL: Owner & Agents): Reproduction and patching engineer. Wakes on sanitized triage handoffs, writes a failing reproduction test in test_cart.py, applies a minimal fix (<30 lines) in cart_service.py, and executes switchguard-cli verify-diff . to validate all 10 AST and syntax gates. A deterministic 2-strike circuit breaker (MAX_ATTEMPTS=2) halts execution into CIRCUIT_BROKEN if two patch attempts fail verification.
-- @sre-clerk (/workspace/release-ops | ACL: Human Approval Gate): Release authority. Remains idle until the human Incident Commander posts '@sre-clerk Approved. Cut hotfix release v1.4.2 for INC-8041.' It validates 4 pre-release checks, packages the hotfix patch, writes a TEE-ready JSON receipt, and links a SHA-256 hash-chain record into RELEASE_AUDIT.log.
+- @sre-clerk (/workspace/release-ops | ACL: Human Approval Gate): Release authority. Remains idle until the human Incident Commander posts '@sre-clerk Approved. Cut hotfix release v1.4.2 for INC-8041.' It validates 5 pre-release checks, packages the hotfix patch, writes a JSON receipt (designed to be bound to a TEE attestation; not implemented), and links a keyed HMAC-SHA256 record into RELEASE_AUDIT.log.
 
 2. Human-in-the-Loop Operational Governance:
 Operators watch sanitized triage reports, reproduction test failures, and unified diffs stream live inside #sre-war-room. Agents handle log scrubbing, root-cause isolation, and TDD patching at machine speed, while the human commander retains final release and 1-command rollback authority.
@@ -119,7 +119,7 @@ The Incident Commander posts Approved.
 Clerk evaluates four pre-release gates, packages the unified patch,
 
 1:05
-generates a TEE-ready attestation receipt,
+generates an attestation receipt (designed to be bound to a TEE attestation; not implemented),
 
 1:08
 and anchors a SHA-256 hash-chained entry to the tamper-evident release audit ledger.
@@ -179,7 +179,7 @@ A 3-agent war room on Switch Console gated at the operating system boundary by a
 
 1. Telemetry Intake (@sre-sentinel): Scrubs secrets to salted HMAC tokens in 7.19ms, preserves version strings against IPv4 collisions, and enforces O(1) deduplication under POSIX fcntl.flock (<0.5ms)—suppressing 32-worker alert storms with zero duplicate LLM calls.
 2. Code Sandbox (@sre-repro): Strict TDD (failing pytest first) + 9.07ms AST diff gate (blocks eval/exec, multiline os.system splits, untracked conftest backdoors, and assert deletions) + 2-strike circuit breaker.
-3. Release Ops (@sre-clerk): Human-gated release authority. Verifies 4 checks, packages unified patches, generates TEE-ready attestation receipts, and anchors a SHA-256 hash chain from genesis.
+3. Release Ops (@sre-clerk): Human-gated release authority. Verifies 5 checks, packages unified patches, generates attestation receipts (designed to be bound to a TEE attestation; not implemented), and anchors a keyed HMAC-SHA256 chain from genesis.
 
 We also contributed two upstream core connectors to sandbox-quantum/switch:
 • PR #1566: Supabase Service Connections v2 (Closes #827, 171/171 tests)
@@ -237,9 +237,9 @@ In 9.07ms p50, it combines unified diff scanning with Python's native AST (ast.w
 Automated releases need non-repudiable proof.
 
 Every hotfix release is cryptographically linked into RELEASE_AUDIT.log:
-ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n) from genesis (64 zeros).
+ChainHash_n = HMAC-SHA256(key, ChainHash_{n-1} || Timestamp_n || PatchSHA256_n) from genesis (64 zeros).
 
-Every release generates a TEE-ready attestation manifest binding the Rust binary & patch SHA-256 digests.
+Every release generates an attestation manifest binding the Rust binary & patch SHA-256 digests (designed to be bound to a TEE attestation; not implemented).
 
 #HowISwitch
 ```

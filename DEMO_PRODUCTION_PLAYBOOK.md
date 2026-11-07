@@ -191,8 +191,8 @@ Error: CartServiceException: Cart subtotal $40.00 minus FLAT100 yields invalid t
 - **0:59 – 1:12**: `@sre-clerk` executes `cut_release.py`:
   * Evaluates 4 pre-release checks.
   * Writes `releases/hotfix-INC-8041-v1.4.2.patch`.
-  * Generates `releases/attestation-INC-8041-v1.4.2.json` (TEE-ready manifest).
-  * Appends SHA-256 hash-chained entry to `RELEASE_AUDIT.log`.
+  * Generates `releases/attestation-INC-8041-v1.4.2.json` (Attestation manifest; designed for TEE binding; not implemented).
+  * Appends keyed HMAC-SHA256 hash-chained entry to `RELEASE_AUDIT.log`.
   * Verifies chain from genesis root via `switchguard-cli verify-audit` (Exit Code 0).
 
 #### Spoken Voiceover Script (Exact Word-for-Word)
@@ -200,7 +200,7 @@ Error: CartServiceException: Cart subtotal $40.00 minus FLAT100 yields invalid t
 > Sentinel invokes our Rust scrubber, redacting JWTs, emails, and IPs into salted HMAC tokens while preserving the software version, then locks the deduplication index via POSIX fcntl. [pause]  
 > Routing to Repro, it follows strict TDD: writing the failing reproduction test first in test_cart, then clamping the negative subtotal in cart_service. [pause]  
 > Before requesting approval, it executes switchguard-cli verify-diff, clearing all ten AST and syntax guardrails in nine milliseconds. [pause]  
-> The Incident Commander posts Approved. Clerk evaluates four pre-release gates, packages the unified patch, generates a TEE-ready attestation receipt, and anchors a SHA-256 hash-chained entry to the tamper-evident release audit ledger."
+> The Incident Commander posts Approved. Clerk evaluates five pre-release gates, packages the unified patch, generates an attestation receipt (designed for TEE binding; not implemented), and anchors a keyed HMAC-SHA256 entry to the tamper-evident release audit ledger."
 
 ---
 
@@ -274,7 +274,7 @@ Key Primitives:  7-layer verification, 32 parallel worker threads, zero JSON cor
 | **0:12 – 0:20** | **Clip 1b** | 8.0s | Cut to 60/40 Split Screen | Directory-isolated Switch agents & compiled Rust OS boundary | OBS cut to Split Screen (Switch Console + Terminal) |
 | **0:20 – 0:35** | **Clip 2a** | 15.0s | 60% Left: Switch Console `#sre-war-room` | `@sre-sentinel` HMAC scrubbing, IPv4 preservation, POSIX lock | Paste `INC-8041` alert; observe scrubbed HMAC tokens |
 | **0:35 – 0:53** | **Clip 2b** | 18.0s | 60% Left: Switch Console `#sre-war-room` | `@sre-repro` TDD test first, clamping patch, 10 AST rules in 9ms | Observe failing pytest, patch, and verify-diff pass |
-| **0:53 – 1:12** | **Clip 2c** | 19.0s | 60% Left: Switch Console `#sre-war-room` | Commander approval, `@sre-clerk` patch, TEE receipt, SHA-256 chain | Paste `Approved`, watch hotfix cut & hash chain verified |
+| **0:53 – 1:12** | **Clip 2c** | 19.0s | 60% Left: Switch Console `#sre-war-room` | Commander approval, `@sre-clerk` patch, attestation receipt, HMAC-SHA256 chain | Paste `Approved`, watch hotfix cut & hash chain verified |
 | **1:12 – 1:42** | **Clip 3** | 30.0s | 60/40 Split (Focus Right Terminal) | Hostile injection `curl|sh`, AST walker trips `AST-SEC-02`, rollback | Run `simulate_incident.py --scenario prompt-injection` |
 | **1:42 – 2:00** | **Clip 4** | 18.0s | Right Terminal $\rightarrow$ Upstream PRs | 30/30 assertions across 7 layers, 32 workers, PRs #1566 / #1659 | Run `mega_sre_test_suite.py`, show 30 passes & PR links |
 
@@ -329,7 +329,7 @@ To reinforce the first-principles architecture for judges, add three minimal, se
 #### Lower-Third 3 (Clip 2, Timecode: `1:00 – 1:10`):
 - **Background**: Dark pill container (`rgba(15, 23, 42, 0.85)` with `1px solid #10b981`).
 - **Heading**: `RING 3: CRYPTOGRAPHIC RELEASE` (Emerald, 12pt Bold).
-- **Subtext**: `@sre-clerk • Human-Gated • SHA-256 Hash Chain • TEE-Ready Receipt`.
+- **Subtext**: `@sre-clerk • Human-Gated • HMAC-SHA256 Hash Chain • Attestation Receipt`.
 
 #### Lower-Third 4 (Clip 4, Timecode: `1:48 – 1:58`):
 - **Background**: Dark pill container (`rgba(15, 23, 42, 0.85)` with `1px solid #f59e0b`).

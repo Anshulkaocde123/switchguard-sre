@@ -101,9 +101,9 @@ EOF
 
 echo "==> [4/5] Resetting release audit log, purging test artifacts & verifying hash chain..."
 cat << 'EOF' > "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log"
-# SwitchGuard SRE — Tamper-Evident Hash-Chained Release Audit Ledger
+# SwitchGuard SRE — Tamper-Evident Keyed HMAC-SHA256 Release Audit Ledger
 # Genesis Hash: 0000000000000000000000000000000000000000000000000000000000000000
-[2026-11-06T05:12:19.859440+00:00] HOTFIX RELEASED: v1.4.2 for INC-8041 | AST_AUDIT=PASS | PATCH=hotfix-INC-8041-v1.4.2.patch | SHA256=0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28 | FILES=1 | LINES_ADDED=1 | PREV_HASH=0000000000000000000000000000000000000000000000000000000000000000 | CHAIN_HASH=77519c5dd1270126469cc783d3e3a8f88f89a38162bcb0f10750af102a46c975
+[2026-11-06T05:12:19.859440+00:00] HOTFIX RELEASED: v1.4.2 for INC-8041 | AST_AUDIT=PASS | PATCH=hotfix-INC-8041-v1.4.2.patch | SHA256=0ee2a4e5bbcf18df31fef0b008755e1c2e9dd0d3843a17e0b3bf67d06a415d28 | FILES=1 | LINES_ADDED=1 | PREV_HASH=0000000000000000000000000000000000000000000000000000000000000000 | CHAIN_HASH=7b39006050468c23d6c24449b822a3c6c6ce4bb48f15536a8b6077434349ffb8
 EOF
 
 # Purge synthetic test artifacts and lock files
@@ -117,12 +117,10 @@ switchguard-cli verify-audit "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log"
 # Regenerate clean executive dashboard
 python3 "$ROOT_DIR/workspace/release-ops/cut_release.py" --dashboard >/dev/null
 
-# Restore tracked ledger, audit, dashboard, and report files to clean committed baseline
+# Restore tracked ledger, dashboard, and report files to clean committed baseline
 git checkout HEAD -- "$ROOT_DIR/workspace/telemetry/incidents_ledger.md" \
-                     "$ROOT_DIR/workspace/release-ops/RELEASE_AUDIT.log" \
                      "$ROOT_DIR/docs/index.html" \
-                     "$ROOT_DIR/TEST_VERIFICATION_REPORT.md" \
-                     "$ROOT_DIR/workspace/release-ops/releases/" 2>/dev/null || true
+                     "$ROOT_DIR/TEST_VERIFICATION_REPORT.md" 2>/dev/null || true
 
 echo "==> [5/5] Verifying baseline pytest suite..."
 python3 -m pytest -q "$ROOT_DIR/workspace/sandbox-app/test_cart.py"

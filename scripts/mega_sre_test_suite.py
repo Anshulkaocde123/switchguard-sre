@@ -22,6 +22,7 @@ import hashlib
 import subprocess
 import statistics
 import concurrent.futures
+import re
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SANDBOX_DIR = os.path.join(ROOT_DIR, "workspace", "sandbox-app")
@@ -918,16 +919,17 @@ def suite_5_integration_and_rollback() -> dict:
             log_fail("Human-in-the-Loop Rollback", f"Rollback failed: reverted={reverted_to_baseline}, state_rb={state_is_rb}, rc={rb_proc.returncode}")
             results.append(False)
 
-        # 5.6 Cryptographic hash-chain tamper detection
+        # 5.6 Cryptographic hash-chain tamper detection (modify an old entry)
         sub_t0 = time.perf_counter()
         audit_proc_clean = run_cmd([CLI_BIN, "verify-audit", AUDIT_LOG])
         clean_valid = (audit_proc_clean.returncode == 0 and "VERIFIED" in audit_proc_clean.stdout)
+        clean_json = json.loads(audit_proc_clean.stdout) if clean_valid else {}
+        clean_head = clean_json.get("chain_head", "")
 
-        # Create tampered copy of audit log
+        # Create tampered copy of audit log (modifying an old entry)
         tampered_log = AUDIT_LOG + ".tampered"
         with open(AUDIT_LOG, "r") as f:
             log_lines = f.readlines()
-        # Mutate the last character of a hash on a chain line
         with open(tampered_log, "w") as f:
             for line in log_lines:
                 if "CHAIN_HASH=" in line:
@@ -949,6 +951,80 @@ def suite_5_integration_and_rollback() -> dict:
             results.append(True)
         else:
             log_fail("Hash-Chain Tamper Detection", f"clean_valid={clean_valid}, tamper_caught={tamper_caught}")
+            results.append(False)
+
+        # 5.7 Audit Log Tail Truncation Detection (--expect-head)
+        sub_t0 = time.perf_counter()
+        trunc_log = AUDIT_LOG + ".truncated"
+        # Write only the first entry, omitting subsequent entries, but assert clean_head
+        non_comment_lines = [l for l in log_lines if not l.strip().startswith("#") and l.strip()]
+        if len(non_comment_lines) >= 2:
+            with open(trunc_log, "w") as f:
+                f.write("# Truncated audit log\n")
+                f.write(non_comment_lines[0])
+            trunc_proc = run_cmd([CLI_BIN, "verify-audit", trunc_log, "--expect-head", clean_head])
+            if os.path.exists(trunc_log):
+                os.remove(trunc_log)
+            trunc_caught = (trunc_proc.returncode == 2 and "TRUNCATION_DETECTED" in trunc_proc.stdout)
+            if trunc_caught:
+                log_pass("Audit Log Truncation Detection", f"Deleted last entry caught via --expect-head (exit 2 TRUNCATION_DETECTED)", (time.perf_counter() - sub_t0)*1000)
+                results.append(True)
+            else:
+                log_fail("Audit Log Truncation Detection", f"Failed to detect truncation: rc={trunc_proc.returncode}, out={trunc_proc.stdout}")
+                results.append(False)
+        else:
+            log_pass("Audit Log Truncation Detection", "Skipped truncation test (insufficient entries)", 0.1)
+            results.append(True)
+
+        # 5.8 Reordered Entries Tamper Detection
+        sub_t0 = time.perf_counter()
+        reorder_log = AUDIT_LOG + ".reordered"
+        if len(non_comment_lines) >= 2:
+            with open(reorder_log, "w") as f:
+                f.write("# Reordered audit log\n")
+                f.write(non_comment_lines[1])
+                f.write(non_comment_lines[0])
+            reorder_proc = run_cmd([CLI_BIN, "verify-audit", reorder_log])
+            if os.path.exists(reorder_log):
+                os.remove(reorder_log)
+            reorder_caught = (reorder_proc.returncode == 2 and "TAMPER_DETECTED" in reorder_proc.stdout)
+            if reorder_caught:
+                log_pass("Audit Log Reorder Tamper Detection", f"Swapped/reordered entries caught and BLOCKED (exit 2)", (time.perf_counter() - sub_t0)*1000)
+                results.append(True)
+            else:
+                log_fail("Audit Log Reorder Tamper Detection", f"Failed to catch reorder: rc={reorder_proc.returncode}, out={reorder_proc.stdout}")
+                results.append(False)
+        else:
+            log_pass("Audit Log Reorder Tamper Detection", "Skipped reorder test (insufficient entries)", 0.1)
+            results.append(True)
+
+        # 5.9 Unkeyed Plain SHA-256 Forgery Rejection
+        sub_t0 = time.perf_counter()
+        plain_log = AUDIT_LOG + ".plain"
+        with open(plain_log, "w") as f:
+            f.write("# Plain SHA-256 unkeyed forged log\n")
+            curr_hash = "0" * 64
+            for l in non_comment_lines:
+                # compute plain sha256 instead of HMAC
+                ts_m = re.search(r"\[([^\]]+)\]", l)
+                sha_m = re.search(r"\bSHA256=([0-9a-fA-F]{64})\b", l)
+                if ts_m and sha_m:
+                    ts = ts_m.group(1)
+                    psha = sha_m.group(1)
+                    plain_hash = hashlib.sha256(f"{curr_hash}{ts}{psha}".encode("utf-8")).hexdigest()
+                    forged_l = re.sub(r"CHAIN_HASH=[0-9a-fA-F]{64}", f"CHAIN_HASH={plain_hash}", l)
+                    forged_l = re.sub(r"PREV_HASH=[0-9a-fA-F]{64}", f"PREV_HASH={curr_hash}", forged_l)
+                    f.write(forged_l)
+                    curr_hash = plain_hash
+        plain_proc = run_cmd([CLI_BIN, "verify-audit", plain_log])
+        if os.path.exists(plain_log):
+            os.remove(plain_log)
+        plain_caught = (plain_proc.returncode == 2 and "TAMPER_DETECTED" in plain_proc.stdout)
+        if plain_caught:
+            log_pass("Unkeyed Plain SHA-256 Forgery Rejection", f"Plain SHA-256 without HMAC key rejected (exit 2)", (time.perf_counter() - sub_t0)*1000)
+            results.append(True)
+        else:
+            log_fail("Unkeyed Plain SHA-256 Forgery Rejection", f"Failed to reject plain SHA-256: rc={plain_proc.returncode}, out={plain_proc.stdout}")
             results.append(False)
 
     finally:

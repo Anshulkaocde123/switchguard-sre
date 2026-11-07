@@ -143,7 +143,12 @@ struct AuditVerifyOutput {
     genesis_hash: String,
     entries_verified: usize,
     latest_chain_hash: String,
+    chain_head: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_head: Option<String>,
     tamper_detected: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_broken_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1224,7 +1229,69 @@ fn run_verify_diff(path_str: &str) -> VerifyOutput {
     }
 }
 
-fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
+fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
+    let mut key_block = [0u8; 64];
+    if key.len() > 64 {
+        let hash = Sha256::digest(key);
+        key_block[..32].copy_from_slice(&hash);
+    } else {
+        key_block[..key.len()].copy_from_slice(key);
+    }
+
+    let mut o_key_pad = [0x5cu8; 64];
+    let mut i_key_pad = [0x36u8; 64];
+    for i in 0..64 {
+        o_key_pad[i] ^= key_block[i];
+        i_key_pad[i] ^= key_block[i];
+    }
+
+    let mut inner = Sha256::new();
+    inner.update(&i_key_pad);
+    inner.update(message);
+    let inner_hash = inner.finalize();
+
+    let mut outer = Sha256::new();
+    outer.update(&o_key_pad);
+    outer.update(&inner_hash);
+    let outer_hash = outer.finalize();
+
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&outer_hash);
+    result
+}
+
+fn get_audit_key(cli_key: Option<&str>) -> Vec<u8> {
+    if let Some(k) = cli_key {
+        return k.as_bytes().to_vec();
+    }
+    if let Ok(k) = env::var("SWITCHGUARD_AUDIT_KEY") {
+        return k.into_bytes();
+    }
+    if let Ok(key_file) = env::var("SWITCHGUARD_AUDIT_KEY_FILE") {
+        if let Ok(k) = fs::read(&key_file) {
+            let trimmed: Vec<u8> = k.into_iter().filter(|&b| b != b'\r' && b != b'\n').collect();
+            if !trimmed.is_empty() {
+                return trimmed;
+            }
+        }
+    }
+    if let Ok(home) = env::var("HOME") {
+        let p = Path::new(&home).join(".config/switchguard/audit.key");
+        if let Ok(k) = fs::read(p) {
+            let trimmed: Vec<u8> = k.into_iter().filter(|&b| b != b'\r' && b != b'\n').collect();
+            if !trimmed.is_empty() {
+                return trimmed;
+            }
+        }
+    }
+    b"switchguard-sre-audit-hmac-key-v1-production-gated".to_vec()
+}
+
+fn run_verify_audit(
+    log_path_str: &str,
+    expect_head: Option<&str>,
+    cli_key: Option<&str>,
+) -> AuditVerifyOutput {
     let normalized_log = normalize_display_path(log_path_str);
     let genesis = "0000000000000000000000000000000000000000000000000000000000000000";
     let target = Path::new(log_path_str);
@@ -1237,7 +1304,10 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
             genesis_hash: genesis.to_string(),
             entries_verified: 0,
             latest_chain_hash: genesis.to_string(),
+            chain_head: genesis.to_string(),
+            expected_head: expect_head.map(|s| s.to_string()),
             tamper_detected: true,
+            first_broken_index: None,
             error: Some(format!("Audit log not found at: {}", normalized_log)),
             failed_entry: None,
         };
@@ -1253,13 +1323,17 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                 genesis_hash: genesis.to_string(),
                 entries_verified: 0,
                 latest_chain_hash: genesis.to_string(),
+                chain_head: genesis.to_string(),
+                expected_head: expect_head.map(|s| s.to_string()),
                 tamper_detected: true,
+                first_broken_index: None,
                 error: Some(format!("Failed to read audit log: {}", e)),
                 failed_entry: None,
             };
         }
     };
 
+    let audit_key = get_audit_key(cli_key);
     let mut current_chain_hash = genesis.to_string();
     let mut verified_count = 0;
 
@@ -1286,8 +1360,11 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                         audit_log: normalized_log.clone(),
                         genesis_hash: genesis.to_string(),
                         entries_verified: verified_count,
-                        latest_chain_hash: current_chain_hash,
+                        latest_chain_hash: current_chain_hash.clone(),
+                        chain_head: current_chain_hash,
+                        expected_head: expect_head.map(|s| s.to_string()),
                         tamper_detected: true,
+                        first_broken_index: Some(verified_count + 1),
                         error: Some(format!("Line {}: Missing valid [Timestamp]", idx + 1)),
                         failed_entry: None,
                     };
@@ -1303,8 +1380,11 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                         audit_log: normalized_log.clone(),
                         genesis_hash: genesis.to_string(),
                         entries_verified: verified_count,
-                        latest_chain_hash: current_chain_hash,
+                        latest_chain_hash: current_chain_hash.clone(),
+                        chain_head: current_chain_hash,
+                        expected_head: expect_head.map(|s| s.to_string()),
                         tamper_detected: true,
+                        first_broken_index: Some(verified_count + 1),
                         error: Some(format!("Line {}: Missing valid 64-char SHA256", idx + 1)),
                         failed_entry: None,
                     };
@@ -1316,9 +1396,11 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                 .map(|c| c.get(1).unwrap().as_str().to_lowercase())
                 .unwrap_or_else(|| current_chain_hash.clone());
 
+            let entry_index = verified_count + 1;
+
             if recorded_prev_hash != current_chain_hash {
                 let entry_info = AuditVerifyEntry {
-                    entry_index: verified_count + 1,
+                    entry_index,
                     timestamp: timestamp.clone(),
                     patch_sha256: patch_sha256.clone(),
                     prev_chain_hash: current_chain_hash.clone(),
@@ -1333,22 +1415,26 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                     genesis_hash: genesis.to_string(),
                     entries_verified: verified_count,
                     latest_chain_hash: current_chain_hash.clone(),
+                    chain_head: current_chain_hash.clone(),
+                    expected_head: expect_head.map(|s| s.to_string()),
                     tamper_detected: true,
+                    first_broken_index: Some(entry_index),
                     error: Some(format!(
-                        "Line {}: Broken hash chain! Recorded PREV_HASH '{}' does not match prior CHAIN_HASH '{}'",
-                        idx + 1, recorded_prev_hash, current_chain_hash
+                        "Entry index {}: Broken hash linkage! Recorded PREV_HASH '{}' does not match prior CHAIN_HASH '{}'",
+                        entry_index, recorded_prev_hash, current_chain_hash
                     )),
                     failed_entry: Some(entry_info),
                 };
             }
 
-            // ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n)
+            // Keyed HMAC-SHA256: entry_mac = HMAC-SHA256(key, prev_mac || timestamp || patch_sha256)
             let payload = format!("{}{}{}", current_chain_hash, timestamp, patch_sha256);
-            let computed_chain_hash = format!("{:x}", Sha256::digest(payload.as_bytes()));
+            let mac_bytes = hmac_sha256(&audit_key, payload.as_bytes());
+            let computed_chain_hash: String = mac_bytes.iter().map(|b| format!("{:02x}", b)).collect();
 
             if computed_chain_hash != recorded_chain_hash {
                 let entry_info = AuditVerifyEntry {
-                    entry_index: verified_count + 1,
+                    entry_index,
                     timestamp: timestamp.clone(),
                     patch_sha256: patch_sha256.clone(),
                     prev_chain_hash: current_chain_hash.clone(),
@@ -1362,11 +1448,14 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
                     audit_log: normalized_log.clone(),
                     genesis_hash: genesis.to_string(),
                     entries_verified: verified_count,
-                    latest_chain_hash: current_chain_hash,
+                    latest_chain_hash: current_chain_hash.clone(),
+                    chain_head: current_chain_hash,
+                    expected_head: expect_head.map(|s| s.to_string()),
                     tamper_detected: true,
+                    first_broken_index: Some(entry_index),
                     error: Some(format!(
-                        "Line {}: Cryptographic hash chain mismatch! Computed '{}', found '{}'",
-                        idx + 1, computed_chain_hash, recorded_chain_hash
+                        "Entry index {}: Cryptographic HMAC chain mismatch! Computed '{}', recorded '{}'",
+                        entry_index, computed_chain_hash, recorded_chain_hash
                     )),
                     failed_entry: Some(entry_info),
                 };
@@ -1377,14 +1466,40 @@ fn run_verify_audit(log_path_str: &str) -> AuditVerifyOutput {
         }
     }
 
+    // Check tail truncation via --expect-head
+    if let Some(expected) = expect_head {
+        if current_chain_hash.to_lowercase() != expected.trim().to_lowercase() {
+            return AuditVerifyOutput {
+                verdict: "TAMPER_DETECTED".to_string(),
+                status: "TRUNCATION_DETECTED".to_string(),
+                audit_log: normalized_log,
+                genesis_hash: genesis.to_string(),
+                entries_verified: verified_count,
+                latest_chain_hash: current_chain_hash.clone(),
+                chain_head: current_chain_hash.clone(),
+                expected_head: Some(expected.to_string()),
+                tamper_detected: true,
+                first_broken_index: Some(verified_count + 1),
+                error: Some(format!(
+                    "Chain head mismatch (truncation detected)! Expected head '{}', but log chain head is '{}'",
+                    expected, current_chain_hash
+                )),
+                failed_entry: None,
+            };
+        }
+    }
+
     AuditVerifyOutput {
         verdict: "VERIFIED".to_string(),
         status: "PASS".to_string(),
         audit_log: normalized_log,
         genesis_hash: genesis.to_string(),
         entries_verified: verified_count,
-        latest_chain_hash: current_chain_hash,
+        latest_chain_hash: current_chain_hash.clone(),
+        chain_head: current_chain_hash,
+        expected_head: expect_head.map(|s| s.to_string()),
         tamper_detected: false,
+        first_broken_index: None,
         error: None,
         failed_entry: None,
     }
@@ -1463,37 +1578,64 @@ fn main() {
             }
         }
         "verify-audit" => {
-            let path_str = if args.len() > 2 {
-                args[2].clone()
-            } else {
-                let candidates = [
-                    "workspace/release-ops/RELEASE_AUDIT.log",
-                    "../release-ops/RELEASE_AUDIT.log",
-                    "RELEASE_AUDIT.log",
-                    "release-ops/RELEASE_AUDIT.log",
-                ];
-                let mut chosen = "workspace/release-ops/RELEASE_AUDIT.log".to_string();
-                for c in &candidates {
-                    if Path::new(c).exists() {
-                        chosen = c.to_string();
-                        break;
+            let mut path_str: Option<String> = None;
+            let mut expect_head: Option<String> = None;
+            let mut cli_key: Option<String> = None;
+
+            let mut i = 2;
+            while i < args.len() {
+                if args[i] == "--expect-head" {
+                    if i + 1 < args.len() {
+                        expect_head = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
+                    }
+                } else if args[i] == "--key" {
+                    if i + 1 < args.len() {
+                        cli_key = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
+                    }
+                } else if !args[i].starts_with("--") {
+                    if path_str.is_none() {
+                        path_str = Some(args[i].clone());
                     }
                 }
-                if !Path::new(&chosen).exists() {
-                    if let Ok(out) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
-                        if out.status.success() {
-                            let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            let candidate = Path::new(&root).join("workspace/release-ops/RELEASE_AUDIT.log");
-                            if candidate.exists() {
-                                chosen = candidate.to_string_lossy().to_string();
+                i += 1;
+            }
+
+            let resolved_path = match path_str {
+                Some(p) => p,
+                None => {
+                    let candidates = [
+                        "workspace/release-ops/RELEASE_AUDIT.log",
+                        "../release-ops/RELEASE_AUDIT.log",
+                        "RELEASE_AUDIT.log",
+                        "release-ops/RELEASE_AUDIT.log",
+                    ];
+                    let mut chosen = "workspace/release-ops/RELEASE_AUDIT.log".to_string();
+                    for c in &candidates {
+                        if Path::new(c).exists() {
+                            chosen = c.to_string();
+                            break;
+                        }
+                    }
+                    if !Path::new(&chosen).exists() {
+                        if let Ok(out) = Command::new("git").args(["rev-parse", "--show-toplevel"]).output() {
+                            if out.status.success() {
+                                let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                                let candidate = Path::new(&root).join("workspace/release-ops/RELEASE_AUDIT.log");
+                                if candidate.exists() {
+                                    chosen = candidate.to_string_lossy().to_string();
+                                }
                             }
                         }
                     }
+                    chosen
                 }
-                chosen
             };
 
-            let result = run_verify_audit(&path_str);
+            let result = run_verify_audit(&resolved_path, expect_head.as_deref(), cli_key.as_deref());
             let is_blocked = result.tamper_detected || result.status != "PASS";
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             if is_blocked {

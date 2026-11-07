@@ -151,7 +151,7 @@ def stage_clip_2():
     print(f" • 0:26: @sre-sentinel scrub log renders in thread; dedup and runbook memory match visible.")
     print(f" • 0:38: @sre-repro posts failing test traceback (<=30 lines), applies fix, runs verify-diff.")
     print(f" • 0:54: You paste/type approval: '{CLERK_APPROVAL_COMMAND}'.")
-    print(f" • 1:02: @sre-clerk cuts patch, signs TEE receipt, and verifies hash chain.\n")
+    print(f" • 1:02: @sre-clerk cuts patch, writes attestation receipt, and verifies HMAC hash chain.\n")
 
     print(f"{GREEN}{BOLD}[SPOKEN SCRIPT — READ CONTINUOUSLY WHILE AGENTS RESPOND]{RESET}")
     print(f"{BOLD}{'-'*80}{RESET}")
@@ -164,7 +164,7 @@ def stage_clip_2():
         "Before requesting approval, it executes switchguard-cli verify-diff, clearing all "
         "ten AST and syntax guardrails in nine milliseconds. "
         "The Incident Commander posts Approved. Clerk evaluates four pre-release gates, "
-        "packages the unified patch, generates a TEE-ready attestation receipt, and anchors "
+        "packages the unified patch, generates an attestation receipt (designed for TEE binding; not implemented), and anchors "
         "a SHA-256 hash-chained entry to the tamper-evident release audit ledger."
     )
     print(f"{spoken}")
