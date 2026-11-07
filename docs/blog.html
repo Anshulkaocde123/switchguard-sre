@@ -1001,12 +1001,12 @@
           <span>•</span>
           <span>6 min read</span>
           <span>•</span>
-          <span>Cloudflare / Stripe Style Engineering Report</span>
+          <span>Systems &amp; Security Engineering Postmortem</span>
         </div>
 
         <div class="meta-pills">
           <span class="meta-pill meta-pill-green">✔ 30/30 Tests Passing</span>
-          <span class="meta-pill meta-pill-cyan">⚡ verify-diff p50: 8.28ms</span>
+          <span class="meta-pill meta-pill-cyan">⚡ verify-diff p50: 9.07ms</span>
           <span class="meta-pill meta-pill-indigo">🔒 POSIX flock 32 Workers</span>
           <a href="https://github.com/sandbox-quantum/switch/pull/1566" target="_blank" class="meta-pill meta-pill-cyan">Upstream PR #1566</a>
           <a href="https://github.com/sandbox-quantum/switch/pull/1659" target="_blank" class="meta-pill meta-pill-cyan">Upstream PR #1659</a>
@@ -1123,7 +1123,7 @@ flowchart TB
 
         <p>Our Rust scrubber computes a keyed HMAC-SHA256 digest over each secret value using a local machine salt $K_{\text{salt}}$, taking the first 6 hexadecimal characters:</p>
 
-        $$\text{Token} = \text{"[REDACTED\_EMAIL\_"} \parallel \text{Hex}(\text{HMAC-SHA256}(K_{\text{salt}}, V))[:6] \parallel \text{"]"}$$
+        <div style="margin:1.25rem 0;padding:0.9rem 1.2rem;background:#0f172a;border:1px solid #1e293b;border-left:3px solid #06b6d4;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:0.9rem;color:#e2e8f0;overflow-x:auto;">Token = <span style="color:#10b981;">"[REDACTED_EMAIL_"</span> || <span style="color:#38bdf8;">Hex</span>(HMAC_SHA256(K<sub>salt</sub>, V))[0..6] || <span style="color:#10b981;">"]"</span></div>
 
         <p>This guarantees that duplicate occurrences of the same user or token produce the exact same opaque token across 100,000 log lines, preserving multi-incident correlation without leaking customer PII to LLM context.</p>
 
