@@ -946,6 +946,9 @@ def generate_dashboard() -> str:
         <a href="https://youtu.be/a3mLn3PMPjo" target="_blank" class="status-pill" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); text-decoration: none; font-weight: 700;">
           <span>▶ WATCH 1:57 DEMO VIDEO</span>
         </a>
+        <a href="blog.html" class="status-pill" style="color: #06b6d4; border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.1); text-decoration: none; font-weight: 700;">
+          <span>📖 TECHNICAL BLOG</span>
+        </a>
         <div class="status-pill">
           <div class="pulse-dot"></div>
           <span>TEE AUDIT ACTIVE • RUST v0.4.0</span>

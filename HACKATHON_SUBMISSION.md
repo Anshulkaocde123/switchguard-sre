@@ -2,8 +2,9 @@
 **Flip the Switch Hackathon (2026)**  
 **Submission Repository:** `https://github.com/Anshulkaocde123/switchguard-sre`  
 **Official 1:57 Demo Video:** `https://youtu.be/a3mLn3PMPjo`  
-**Live Verification Dashboard:** `https://anshulkaocde123.github.io/switchguard-sre/`  
-**Technical Architecture Guide:** `https://github.com/Anshulkaocde123/switchguard-sre#readme`
+**Live Control Plane:** `https://anshulkaocde123.github.io/switchguard-sre/`  
+**Interactive Technical Blog:** `https://anshulkaocde123.github.io/switchguard-sre/blog.html`  
+**Technical Architecture Guide:** `https://github.com/Anshulkaocde123/switchguard-sre/blob/main/BLOG.md`
 
 ---
 
@@ -158,4 +159,99 @@ We also contributed upstream connectors for Supabase PR 1566 and Trello PR 1659.
 
 1:54
 SwitchGuard SRE: provable safety for autonomous operations.
+```
+
+---
+
+## Block 5: Official #HowISwitch Post for X (Twitter)
+
+### Option A: Complete Standalone Post (Recommended for Single Post / Long-Form)
+```text
+Giving autonomous AI agents unconstrained shell access fails in production:
+❌ Raw crash logs leak customer JWTs & AWS keys
+❌ Telemetry headers prompt-inject agents into `curl | sh` backdoors
+❌ Alert storms cause token bankruptcy & race conditions
+
+Here is #HowISwitch to build autonomous SRE with real OS-boundary guardrails:
+
+Meet SwitchGuard SRE 🛡️⚡
+A 3-agent war room on Switch Console gated at the operating system boundary by a high-speed compiled Rust verifier (switchguard-cli):
+
+1. Telemetry Intake (@sre-sentinel): Scrubs secrets to salted HMAC tokens in 7.19ms, preserves version strings against IPv4 collisions, and enforces O(1) deduplication under POSIX fcntl.flock (<0.5ms)—suppressing 32-worker alert storms with zero duplicate LLM calls.
+2. Code Sandbox (@sre-repro): Strict TDD (failing pytest first) + 9.07ms AST diff gate (blocks eval/exec, multiline os.system splits, untracked conftest backdoors, and assert deletions) + 2-strike circuit breaker.
+3. Release Ops (@sre-clerk): Human-gated release authority. Verifies 4 checks, packages unified patches, generates TEE-ready attestation receipts, and anchors a SHA-256 hash chain from genesis.
+
+We also contributed two upstream core connectors to sandbox-quantum/switch:
+• PR #1566: Supabase Service Connections v2 (Closes #827, 171/171 tests)
+• PR #1659: Trello Remote MCP Connector (Closes #837, 220/220 tests)
+
+📺 1:57 Demo Video: https://youtu.be/a3mLn3PMPjo
+📖 Interactive Blog: https://anshulkaocde123.github.io/switchguard-sre/blog.html
+💻 GitHub (30/30 Tests Green): https://github.com/Anshulkaocde123/switchguard-sre
+
+#HowISwitch #AI #RustLang #DevOps #SRE #MachineLearning #AutonomousAgents
+```
+
+### Option B: 5-Tweet Technical Thread
+
+#### Tweet 1 (The Hook & Video)
+```text
+Giving autonomous AI agents unconstrained shell access fails in production:
+- Crash logs leak customer JWTs & AWS keys to cloud LLM APIs
+- Telemetry prompt-injects agents into `curl | sh` backdoors
+- Alert storms burn thousands of dollars in API credits
+
+Here is #HowISwitch to fix it 🧵👇
+
+📺 Watch the 1:57 execution: https://youtu.be/a3mLn3PMPjo
+```
+
+#### Tweet 2 (The 3-Ring Architecture)
+```text
+Instead of a single unconstrained agent, SwitchGuard SRE runs 3 directory-isolated Switch Console agents in #sre-war-room:
+
+• @sre-sentinel (/workspace/telemetry): 0 access to app code. Scrubs secrets in 7.19ms & dedups O(1) under POSIX fcntl.flock (<0.5ms).
+• @sre-repro (/workspace/sandbox-app): TDD reproduction & surgical fixing.
+• @sre-clerk (/workspace/release-ops): Human-gated release & audit.
+
+#HowISwitch
+```
+
+#### Tweet 3 (Compiled Rust AST Guardrails)
+```text
+Why does agent safety fail? Prompts can be jailbroken.
+
+We built switchguard-cli in compiled Rust.
+In 9.07ms p50, it parses unified diffs & walks Python's native AST (ast.walk) to enforce 10 rules:
+- Blocks eval/exec & os.system splits
+- Blocks subprocess & dynamic imports
+- Anti-reward-hacking: blocks test/assert deletions
+- MAX_ATTEMPTS=2 circuit breaker
+
+#HowISwitch
+```
+
+#### Tweet 4 (Tamper-Evident SHA-256 Audit Chain)
+```text
+Automated releases need non-repudiable proof.
+
+Every hotfix release is cryptographically linked into RELEASE_AUDIT.log:
+ChainHash_n = SHA256(ChainHash_{n-1} || Timestamp_n || PatchSHA256_n) from genesis (64 zeros).
+
+Every release generates a TEE-ready attestation manifest binding the Rust binary & patch SHA-256 digests.
+
+#HowISwitch
+```
+
+#### Tweet 5 (Upstream Switch Contributions & Live Links)
+```text
+We also contributed 2 core service connectors back to sandbox-quantum/switch:
+• PR #1566: Supabase Service Connector (Closes #827, 171/171 tests)
+• PR #1659: Trello Remote MCP Connector (Closes #837, 220/220 tests)
+
+Check out the project:
+📖 Deep Dive Blog: https://anshulkaocde123.github.io/switchguard-sre/blog.html
+💻 GitHub (30/30 tests pass): https://github.com/Anshulkaocde123/switchguard-sre
+
+#HowISwitch
 ```
