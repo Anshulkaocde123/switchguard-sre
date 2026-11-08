@@ -16,7 +16,7 @@ SwitchGuard SRE is a hybrid Rust + Python autonomous incident response pipeline 
 
 ## High-Concurrency & Durability Architecture
 - **Input-Side Sanitization & Delimited Envelopes:** `switchguard-cli scrub` neutralizes zero-width and bidi characters, enforces maximum length/line bounds, wraps logs in random per-run delimited envelopes, and flags heuristic prompt injection patterns (`injection_suspected: true`).
-- **O(1) Rust Deduplication:** `switchguard-cli scrub` fingerprints crashes via $\text{SHA256}(\text{error\_class} \parallel \text{file:line})$ against `dedup_index.json` in $<0.5\text{ms}$. Duplicate alerts return `"dedup_status": "SUPPRESSED_DUPLICATE"`, logging spikes without re-waking LLM agents.
+- **O(1) Rust Deduplication:** `switchguard-cli scrub` fingerprints crashes via `SHA256(error_class || file:line)` against `dedup_index.json` in $<0.5\text{ms}$. Duplicate alerts return `"dedup_status": "SUPPRESSED_DUPLICATE"`, logging spikes without re-waking LLM agents.
 - **POSIX Durability (`fcntl.flock` + `os.fsync`):** Concurrent writes to `incidents_ledger.md` and `RELEASE_AUDIT.log` use kernel file locking and fsync guarantees.
 - **Tamper-Evident HMAC Hash Chaining:** Every hotfix release entry computes $\text{ChainHash}_n = \text{HMAC-SHA256}(\text{key}, \text{ChainHash}_{n-1} \parallel \text{Timestamp}_n \parallel \text{PatchSHA256}_n)$ from genesis ($0000\dots0000$). Verified by `switchguard-cli verify-audit --expect-head`.
 - **Deterministic State Machine (DAG):** Enforced by `workspace/telemetry/incident_state.py` (`TRIAGED → REPRODUCING → PATCH_VERIFIED → RELEASED | ESCALATED`). No backward transitions; MAX_ATTEMPTS=2 circuit breaker.

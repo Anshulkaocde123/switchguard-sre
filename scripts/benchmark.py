@@ -247,7 +247,7 @@ def run_benchmark(n_iterations: int = 50) -> dict:
         f.write("> **Why Core and End-to-End Differ:** Core processing measures the internal CPU execution time inside the compiled Rust binary (regex matching, SHA-256 digests, HMAC-SHA256 calculations, and hash-table lookups). End-to-end invocation measures the full subprocess lifecycle including OS `fork`/`exec`, dynamic linker initialization (`ld.so`), memory mapping, and stdout/stderr pipe communication.\n\n")
 
         f.write("> [!NOTE]\n")
-        f.write("> **Precise Definition of O(1) Deduplication:** Alert storm deduplication is $O(1)$ expected time because fault fingerprints are computed as $\\text{SHA256}(\\text{error\\_class} \\parallel \\text{normalized\\_file\\_line})$ and resolved via a hash-table index (`HashMap<String, DedupEntry>`), avoiding any linear scan over historic crash logs.\n\n")
+        f.write("> **Precise Definition of O(1) Deduplication:** Alert storm deduplication is $O(1)$ expected time because fault fingerprints are computed as `SHA256(error_class || normalized_file_line)` and resolved via a hash-table index (`HashMap<String, DedupEntry>`), avoiding any linear scan over historic crash logs.\n\n")
 
         f.write("## 3. Measured Performance Summary\n\n")
         f.write("| Operation | Metric Layer | Samples ($N$) | Min | p50 (Median) | p95 | p99 | Max | StdDev |\n")

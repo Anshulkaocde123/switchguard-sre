@@ -353,7 +353,7 @@ Final Scorecard Verdict: 100% PASSED — HARDENED PROTOTYPE
 Measured via [`scripts/benchmark.py`](scripts/benchmark.py) on Linux x86_64 (13th Gen Intel Core i5-1335U, rustc 1.99.1 release profile; see [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for full metrics and raw JSON):
 
 > [!NOTE]
-> **Why Core and End-to-End Differ:** Core processing measures the internal CPU execution time inside the compiled Rust binary (regex matching, SHA-256 digests, HMAC calculations, hash-table lookups); end-to-end includes process fork/exec, dynamic linker initialization (`ld.so`), memory mapping, and stdout pipe handling (plus Python runtime spawning for AST analysis). Alert storm deduplication is $O(1)$ expected time via in-memory/locked JSON hash-table lookups indexed by $\text{SHA256}(\text{error\_class} \parallel \text{file:line})$.
+> **Why Core and End-to-End Differ:** Core processing measures the internal CPU execution time inside the compiled Rust binary (regex matching, SHA-256 digests, HMAC calculations, hash-table lookups); end-to-end includes process fork/exec, dynamic linker initialization (`ld.so`), memory mapping, and stdout pipe handling (plus Python runtime spawning for AST analysis). Alert storm deduplication is $O(1)$ expected time via in-memory/locked JSON hash-table lookups indexed by `SHA256(error_class || file:line)`.
 
 | Operation | Metric Layer | Samples ($N$) | Min | p50 (Median) | p95 | p99 | SLA Target | Verdict |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -485,7 +485,7 @@ switchguard-sre/
 
 ## 11. Verification Contract & License
 
-All code in this repository is guaranteed to pass the 30-assertion mega test suite on fresh clone:
+All code in this repository is guaranteed to pass the 54-assertion mega test suite on fresh clone:
 
 ```bash
 python3 scripts/mega_sre_test_suite.py
