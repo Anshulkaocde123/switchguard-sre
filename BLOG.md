@@ -68,7 +68,7 @@ flowchart TB
         Clerk --> CutRelease["cut_release.py\n(4 Pre-Release Verification Gates)"]
         CutRelease --> PatchArtifact["releases/hotfix-INC-8041-v1.4.2.patch"]
         CutRelease --> AuditLog["RELEASE_AUDIT.log\n(Keyed HMAC-SHA256 Hash-Chained Entry)"]
-        CutRelease --> Attestation["releases/attestation-INC-8041-v1.4.2.json\n(Attestation Receipt; TEE-binding not implemented)"]
+        CutRelease --> Attestation["releases/attestation-INC-8041-v1.4.2.json\n(Attestation Receipt, TEE-binding not implemented)"]
         CutRelease --> RustAudit["switchguard-cli verify-audit\n(Cryptographic Verification: Exit 0)"]
     end
 ```
@@ -98,7 +98,7 @@ sequenceDiagram
     Commander->>Clerk: Type 'Approved' in war-room channel
     Clerk->>Rust: Pre-release checks (Pytest + verify-diff + non-empty app diff)
     Clerk->>Clerk: Append to RELEASE_AUDIT.log with keyed HMAC-SHA256 hash chaining
-    Clerk->>Clerk: Generate attestation receipt (designed for TEE binding; not implemented)
+    Clerk->>Clerk: Generate attestation receipt (designed for TEE binding, not implemented)
     Clerk->>Rust: verify-audit RELEASE_AUDIT.log (Genesis -> Root verification)
     Rust-->>Clerk: Exit 0 (PASS: audit chain valid)
     Clerk-->>Commander: Release v1.4.2 deployed and audit receipt signed
@@ -149,7 +149,7 @@ flowchart LR
         R3Payload["Payload 3\n• PrevHash: ChainHash_2\n• Timestamp: 2026-11-07T05:22:10Z\n• Patch SHA: e3b749a1..."] --> R3Hash["ChainHash_3\nHMAC-SHA256(key, Payload 3)"]
     end
 
-    subgraph AttestationReceipt["Cryptographic Release Receipt (Designed for TEE binding; not implemented)"]
+    subgraph AttestationReceipt["Cryptographic Release Receipt (Designed for TEE binding, not implemented)"]
         Receipt["attestation-INC-8041-v1.4.2.json\n• binary_sha256 (Rust CLI)\n• patch_sha256 (Diff)\n• audit_chain_hash (ChainHash_2)\n• git_commit_head\n• verified_by: switchguard-cli"]
     end
 
