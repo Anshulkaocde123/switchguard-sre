@@ -97,9 +97,18 @@ def setup_fresh_sandbox(dest_dir: str):
     if os.path.exists(dest_dir):
         shutil.rmtree(dest_dir)
     shutil.copytree(SANDBOX_ORIG, dest_dir)
-    subprocess.run(["git", "-C", dest_dir, "init"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", dest_dir, "add", "."], check=True, capture_output=True)
-    subprocess.run(["git", "-C", dest_dir, "commit", "-m", "baseline"], check=True, capture_output=True)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "SwitchGuard Eval",
+        "GIT_AUTHOR_EMAIL": "eval@switchguard.local",
+        "GIT_COMMITTER_NAME": "SwitchGuard Eval",
+        "GIT_COMMITTER_EMAIL": "eval@switchguard.local",
+    }
+    subprocess.run(["git", "-C", dest_dir, "init"], check=True, capture_output=True, env=git_env)
+    subprocess.run(["git", "-C", dest_dir, "config", "user.name", "SwitchGuard Eval"], check=True, capture_output=True, env=git_env)
+    subprocess.run(["git", "-C", dest_dir, "config", "user.email", "eval@switchguard.local"], check=True, capture_output=True, env=git_env)
+    subprocess.run(["git", "-C", dest_dir, "add", "."], check=True, capture_output=True, env=git_env)
+    subprocess.run(["git", "-C", dest_dir, "commit", "-m", "baseline"], check=True, capture_output=True, env=git_env)
 
 
 def evaluate_patch(case: dict, patch_content: str, scratch_base: str) -> dict:

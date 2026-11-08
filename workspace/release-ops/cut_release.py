@@ -1970,6 +1970,10 @@ def execute_rollback(incident_id: str, version: str):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print("Usage: cut_release.py [INCIDENT_ID] [VERSION] [--rollback] [--dashboard]")
+        sys.exit(0)
+
     if len(sys.argv) > 1 and sys.argv[1] in ("--dashboard", "--generate-dashboard"):
         df = generate_dashboard()
         print(f"Executive dashboard generated at: {df}")

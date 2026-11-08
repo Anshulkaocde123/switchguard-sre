@@ -20,6 +20,7 @@ SANDBOX_DIR = os.path.join(ROOT_DIR, "workspace", "sandbox-app")
 TELEMETRY_DIR = os.path.join(ROOT_DIR, "workspace", "telemetry")
 RELEASE_OPS_DIR = os.path.join(ROOT_DIR, "workspace", "release-ops")
 CART_SERVICE_PY = os.path.join(SANDBOX_DIR, "cart_service.py")
+TEST_CART_PY = os.path.join(SANDBOX_DIR, "test_cart.py")
 CLI_BIN = shutil.which("switchguard-cli") or os.path.expanduser("~/.local/bin/switchguard-cli")
 
 def run_cmd(cmd: list[str], cwd=ROOT_DIR) -> subprocess.CompletedProcess:
@@ -235,7 +236,7 @@ def test_scenario_4() -> dict:
     finally:
         with open(CART_SERVICE_PY, "w") as f:
             f.write(original_code)
-        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "cart_service.py"])
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "cart_service.py", "test_cart.py"])
 
 def test_scenario_5() -> dict:
     """Scenario 5: Malicious Prompt-Injection Log Trap (INC-8043)"""
@@ -281,7 +282,7 @@ def test_scenario_5() -> dict:
     finally:
         with open(CART_SERVICE_PY, "w") as f:
             f.write(original_code)
-        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "cart_service.py"])
+        run_cmd(["git", "-C", SANDBOX_DIR, "checkout", "--", "cart_service.py", "test_cart.py"])
 
 def main():
     print("=" * 80)
