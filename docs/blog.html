@@ -1121,7 +1121,7 @@ flowchart TB
         <h3>Salted HMAC Tokenization</h3>
         <p>Static redaction masks like <code>[REDACTED]</code> break incident triage. If an alert log has 10 customer crashes, replacing every email address with <code>[REDACTED]</code> makes it impossible for the agent to know if the crash affects 1 user or 10 distinct users. Cardinality is lost.</p>
 
-        <p>Our Rust scrubber computes a keyed HMAC-SHA256 digest over each secret value using a local machine salt $K_{\text{salt}}$, taking the first 6 hexadecimal characters:</p>
+        <p>Our Rust scrubber computes a keyed HMAC-SHA256 digest over each secret value using a local machine salt <code>K<sub>salt</sub></code>, taking the first 6 hexadecimal characters:</p>
 
         <div style="margin:1.25rem 0;padding:0.9rem 1.2rem;background:#0f172a;border:1px solid #1e293b;border-left:3px solid #06b6d4;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:0.9rem;color:#e2e8f0;overflow-x:auto;">Token = <span style="color:#10b981;">"[REDACTED_EMAIL_"</span> || <span style="color:#38bdf8;">Hex</span>(HMAC_SHA256(K<sub>salt</sub>, V))[0..6] || <span style="color:#10b981;">"]"</span></div>
 
